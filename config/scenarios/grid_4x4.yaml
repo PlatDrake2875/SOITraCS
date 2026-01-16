@@ -1,0 +1,230 @@
+# 4x4 Grid Network Configuration
+# Simple grid for demonstrating algorithm emergence
+# Increased spacing (250px) for better visual clarity
+
+name: "4x4 Grid Network"
+description: "Simple 4x4 grid network for algorithm demonstrations"
+
+intersections:
+  # Row 0
+  - id: 0
+    position: [100, 100]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 1
+    position: [350, 100]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 2
+    position: [600, 100]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 3
+    position: [850, 100]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  # Row 1
+  - id: 4
+    position: [100, 350]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 5
+    position: [350, 350]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 6
+    position: [600, 350]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 7
+    position: [850, 350]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  # Row 2
+  - id: 8
+    position: [100, 600]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 9
+    position: [350, 600]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 10
+    position: [600, 600]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 11
+    position: [850, 600]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  # Row 3
+  - id: 12
+    position: [100, 850]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 13
+    position: [350, 850]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 14
+    position: [600, 850]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+  - id: 15
+    position: [850, 850]
+    signal_phases:
+      - duration: 30
+        green_directions: [north, south]
+      - duration: 30
+        green_directions: [east, west]
+
+roads:
+  # Horizontal roads (bidirectional) - Row 0
+  - { id: 0, from: 0, to: 1, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 1, from: 1, to: 0, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 2, from: 1, to: 2, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 3, from: 2, to: 1, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 4, from: 2, to: 3, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 5, from: 3, to: 2, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Horizontal roads - Row 1
+  - { id: 6, from: 4, to: 5, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 7, from: 5, to: 4, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 8, from: 5, to: 6, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 9, from: 6, to: 5, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 10, from: 6, to: 7, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 11, from: 7, to: 6, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Horizontal roads - Row 2
+  - { id: 12, from: 8, to: 9, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 13, from: 9, to: 8, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 14, from: 9, to: 10, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 15, from: 10, to: 9, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 16, from: 10, to: 11, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 17, from: 11, to: 10, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Horizontal roads - Row 3
+  - { id: 18, from: 12, to: 13, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 19, from: 13, to: 12, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 20, from: 13, to: 14, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 21, from: 14, to: 13, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 22, from: 14, to: 15, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 23, from: 15, to: 14, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Vertical roads (bidirectional) - Column 0
+  - { id: 24, from: 0, to: 4, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 25, from: 4, to: 0, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 26, from: 4, to: 8, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 27, from: 8, to: 4, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 28, from: 8, to: 12, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 29, from: 12, to: 8, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Vertical roads - Column 1
+  - { id: 30, from: 1, to: 5, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 31, from: 5, to: 1, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 32, from: 5, to: 9, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 33, from: 9, to: 5, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 34, from: 9, to: 13, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 35, from: 13, to: 9, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Vertical roads - Column 2
+  - { id: 36, from: 2, to: 6, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 37, from: 6, to: 2, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 38, from: 6, to: 10, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 39, from: 10, to: 6, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 40, from: 10, to: 14, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 41, from: 14, to: 10, lanes: 1, length: 25, speed_limit: 5 }
+
+  # Vertical roads - Column 3
+  - { id: 42, from: 3, to: 7, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 43, from: 7, to: 3, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 44, from: 7, to: 11, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 45, from: 11, to: 7, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 46, from: 11, to: 15, lanes: 1, length: 25, speed_limit: 5 }
+  - { id: 47, from: 15, to: 11, lanes: 1, length: 25, speed_limit: 5 }
+
+spawn_points:
+  - intersection: 0
+    rate: 0.08
+    destinations: [15, 3, 12]
+
+  - intersection: 3
+    rate: 0.08
+    destinations: [12, 0, 15]
+
+  - intersection: 12
+    rate: 0.08
+    destinations: [3, 15, 0]
+
+  - intersection: 15
+    rate: 0.08
+    destinations: [0, 12, 3]
+
+scenarios:
+  rush_hour:
+    spawn_rate_multiplier: 3.0
+    duration: 300
+
+  incident:
+    blocked_road: 8
+    duration: 100

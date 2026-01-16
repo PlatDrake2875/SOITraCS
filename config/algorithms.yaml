@@ -1,0 +1,48 @@
+# Algorithm Configuration for SOITCS
+# All algorithm parameters are tunable here without code changes
+# Note: Overlays are disabled by default for cleaner visuals
+
+cellular_automata:
+  enabled: true
+  max_velocity: 5          # Maximum vehicle speed (cells/tick)
+  slow_probability: 0.3    # Random slowdown probability (NaSch model)
+  lane_change_threshold: 2 # Minimum speed diff for lane change
+
+sotl:
+  enabled: false           # Disabled by default for cleaner visuals
+  min_green_time: 10       # Minimum green phase duration (ticks)
+  max_green_time: 60       # Maximum green phase duration (ticks)
+  theta: 5                 # Queue threshold for phase change
+  mu: 3                    # Platoon detection threshold
+  omega: 15                # Gap-out timer threshold
+
+aco:
+  enabled: false           # Disabled by default for cleaner visuals
+  alpha: 1.0               # Pheromone importance weight
+  beta: 2.0                # Heuristic importance weight
+  rho: 0.1                 # Evaporation rate per tick
+  Q: 100                   # Pheromone deposit constant
+  reroute_frequency: 10    # Ticks between reroute calculations
+
+pso:
+  enabled: false           # Disabled by default (computationally heavy)
+  swarm_size: 30           # Number of particles in swarm
+  c1: 2.0                  # Cognitive coefficient (personal best)
+  c2: 2.0                  # Social coefficient (global best)
+  w: 0.7                   # Inertia weight
+  optimization_interval: 50 # Ticks between optimization runs
+
+som:
+  enabled: false           # Disabled by default
+  grid_size: [10, 10]      # SOM grid dimensions
+  learning_rate: 0.5       # Initial learning rate
+  sigma: 3.0               # Initial neighborhood radius
+  pretrained_path: "data/pretrained_models/som_traffic_patterns.pkl"
+
+marl:
+  enabled: false           # Disabled by default (computationally heavy)
+  learning_rate: 0.001     # Neural network learning rate
+  gamma: 0.99              # Discount factor for future rewards
+  epsilon: 0.1             # Exploration rate (epsilon-greedy)
+  pretrained_path: "data/pretrained_models/marl_signal_control.pt"
+  inference_only: true     # Use pre-trained weights, no online learning
