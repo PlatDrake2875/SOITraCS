@@ -76,12 +76,10 @@ class NetworkLayer(BaseLayer):
 
             # Check if either direction has an incident
             has_incident = road.has_incident
-            # Also check reverse road if it exists
-            for other_road in self.network.roads.values():
-                if (other_road.from_intersection == road.to_intersection and
-                    other_road.to_intersection == road.from_intersection):
-                    has_incident = has_incident or other_road.has_incident
-                    break
+            # Also check reverse road if it exists (O(1) lookup)
+            reverse_road = self.network.get_reverse_road(road.id)
+            if reverse_road:
+                has_incident = has_incident or reverse_road.has_incident
 
             # Draw road as a thick line with rounded caps
             self._draw_road_segment(surface, start, end, width, zoom, has_incident)

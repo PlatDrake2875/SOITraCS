@@ -5,6 +5,8 @@ from typing import List, Optional, Tuple, Dict, TYPE_CHECKING
 from enum import Enum, auto
 import random
 
+from config.constants import REROUTE_POSITION_THRESHOLD
+
 if TYPE_CHECKING:
     from .network import RoadNetwork, SpawnPoint
     from .road import Road, Lane
@@ -258,9 +260,13 @@ class Vehicle:
 
     def can_reroute(self) -> bool:
         """Check if vehicle is eligible for rerouting (at start of road)."""
-        # Only reroute at start of a road (position < 3 cells)
-        # And not arrived/despawned
-        return self.position < 3 and self.state == VehicleState.MOVING
+        # Only reroute at start of a road
+        if self.position >= REROUTE_POSITION_THRESHOLD:
+            return False
+        # Only reroute if moving or waiting
+        if self.state not in (VehicleState.MOVING, VehicleState.WAITING):
+            return False
+        return True
 
     def reroute(
         self,
@@ -288,10 +294,16 @@ class Vehicle:
             return False
 
         # Calculate new route from current intersection to destination
-        current_intersection = current_road.from_intersection
+        # Vehicle is at start of road, heading toward to_intersection
+        current_intersection = current_road.to_intersection
         new_route = network.find_route(current_intersection, self.destination, weights)
 
         if not new_route:
+            return False
+
+        # Validate route continuity - first road must start at current intersection
+        first_new_road = network.get_road(new_route[0])
+        if not first_new_road or first_new_road.from_intersection != current_intersection:
             return False
 
         # Check if new route is different

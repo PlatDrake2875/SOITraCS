@@ -48,6 +48,7 @@ class RoadNetwork:
     # Adjacency for routing
     _adjacency: Dict[int, List[Tuple[int, int]]] = field(default_factory=dict)  # intersection -> [(neighbor, road_id)]
     _road_directions: Dict[Tuple[int, int], Direction] = field(default_factory=dict)  # (road_id, intersection_id) -> approach direction
+    _reverse_roads: Dict[int, Optional[int]] = field(default_factory=dict)  # road_id -> reverse_road_id (or None)
 
     def add_intersection(self, intersection: Intersection) -> None:
         """Add an intersection to the network."""
@@ -64,6 +65,9 @@ class RoadNetwork:
             self._adjacency[road.from_intersection] = []
         self._adjacency[road.from_intersection].append((road.to_intersection, road.id))
 
+        # Update reverse road lookup
+        self._update_reverse_lookup(road)
+
         # Update intersection connections
         from_int = self.intersections.get(road.from_intersection)
         to_int = self.intersections.get(road.to_intersection)
@@ -73,6 +77,28 @@ class RoadNetwork:
             from_int.connect_outgoing(direction, road.id)
             to_int.connect_incoming(Direction.opposite(direction), road.id)
             self._road_directions[(road.id, road.to_intersection)] = Direction.opposite(direction)
+
+    def _update_reverse_lookup(self, road: Road) -> None:
+        """Update reverse road lookup for efficient bidirectional road queries."""
+        # Find if there's an existing road going the opposite direction
+        for other_id, other_road in self.roads.items():
+            if other_id == road.id:
+                continue
+            if (other_road.from_intersection == road.to_intersection and
+                other_road.to_intersection == road.from_intersection):
+                # Found reverse road - link both directions
+                self._reverse_roads[road.id] = other_id
+                self._reverse_roads[other_id] = road.id
+                return
+        # No reverse road found
+        self._reverse_roads[road.id] = None
+
+    def get_reverse_road(self, road_id: int) -> Optional[Road]:
+        """Get the reverse road (opposite direction) if it exists."""
+        reverse_id = self._reverse_roads.get(road_id)
+        if reverse_id is not None:
+            return self.roads.get(reverse_id)
+        return None
 
     def _calculate_direction(
         self,

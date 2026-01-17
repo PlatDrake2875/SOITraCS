@@ -1,6 +1,6 @@
 """Ant Colony Optimization (ACO) algorithm for dynamic vehicle routing."""
 
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Callable, Optional, Set
 from dataclasses import dataclass, field
 import random
 import math
@@ -10,7 +10,12 @@ from ..base import BaseAlgorithm, AlgorithmVisualization
 from src.entities.network import RoadNetwork
 from src.entities.road import Road
 from src.core.state import SimulationState
-from src.core.event_bus import Event, EventType, get_event_bus
+from src.core.event_bus import Event, EventType, EventHandler, get_event_bus
+from config.constants import (
+    ACO_DEPOSIT_MULTIPLIER,
+    ACO_CONGESTION_PENALTY,
+    ACO_INCIDENT_PENALTY,
+)
 
 
 class ACOAlgorithm(BaseAlgorithm):
@@ -52,10 +57,15 @@ class ACOAlgorithm(BaseAlgorithm):
         self._min_pheromone = 0.1
         self._max_pheromone = 10.0
 
+        # Event handler tracking (prevents memory leak)
+        self._event_handlers: Dict[EventType, EventHandler] = {}
+
+        # Track roads with active incidents (to avoid double-penalty)
+        self._incident_roads: Set[int] = set()
+
         # Metrics
         self._total_reroutes = 0
         self._avg_pheromone = 1.0
-        self._tick_counter = 0
 
     def initialize(self, network: RoadNetwork, state: SimulationState) -> None:
         """Initialize pheromone matrix."""
@@ -66,20 +76,38 @@ class ACOAlgorithm(BaseAlgorithm):
         for road_id in network.roads:
             self._pheromone[road_id] = 1.0
 
-        # Subscribe to events
-        event_bus = get_event_bus()
-        event_bus.subscribe(EventType.VEHICLE_ARRIVED, self._on_vehicle_arrived)
-        event_bus.subscribe(EventType.CONGESTION_DETECTED, self._on_congestion)
-        event_bus.subscribe(EventType.INCIDENT_INJECTED, self._on_incident)
+        # Unsubscribe existing handlers before subscribing new ones
+        self._unsubscribe_events()
+        self._subscribe_events()
 
         self._initialized = True
+
+    def _subscribe_events(self) -> None:
+        """Subscribe to relevant events."""
+        event_bus = get_event_bus()
+
+        # Store handlers for later unsubscription
+        self._event_handlers = {
+            EventType.CONGESTION_DETECTED: self._on_congestion,
+            EventType.INCIDENT_INJECTED: self._on_incident,
+        }
+
+        for event_type, handler in self._event_handlers.items():
+            event_bus.subscribe(event_type, handler)
+
+    def _unsubscribe_events(self) -> None:
+        """Unsubscribe from all events."""
+        event_bus = get_event_bus()
+
+        for event_type, handler in self._event_handlers.items():
+            event_bus.unsubscribe(event_type, handler)
+
+        self._event_handlers.clear()
 
     def update(self, state: SimulationState, dt: float) -> Dict[str, Any]:
         """Update ACO algorithm - evaporate and deposit pheromone."""
         if not self.enabled or not self._initialized:
             return {}
-
-        self._tick_counter += 1
 
         # Evaporate pheromone
         self._evaporate()
@@ -113,8 +141,12 @@ class ACOAlgorithm(BaseAlgorithm):
                 if road_id in self._pheromone:
                     # Deposit inversely proportional to travel time
                     deposit = self.Q / max(1, vehicle.total_time - vehicle.wait_time)
-                    self._pheromone[road_id] += deposit * 0.01  # Small deposits per tick
+                    self._pheromone[road_id] += deposit * ACO_DEPOSIT_MULTIPLIER
                     self._pheromone[road_id] = min(self._max_pheromone, self._pheromone[road_id])
+
+    def record_reroute(self) -> None:
+        """Record that a vehicle was rerouted using ACO weights."""
+        self._total_reroutes += 1
 
     def get_route_weights(self) -> Dict[int, float]:
         """
@@ -139,25 +171,25 @@ class ACOAlgorithm(BaseAlgorithm):
 
         return weights
 
-    def _on_vehicle_arrived(self, event: Event) -> None:
-        """Handle vehicle arrival - deposit pheromone on route."""
-        # Could enhance to deposit along entire route
-        pass
-
     def _on_congestion(self, event: Event) -> None:
         """Handle congestion detection - reduce pheromone on congested roads."""
         road_id = event.data.get("road_id")
+        # Skip if road has an active incident (already penalized more heavily)
+        if road_id in self._incident_roads:
+            return
         if road_id in self._pheromone:
             # Reduce pheromone on congested road
-            self._pheromone[road_id] *= 0.5
+            self._pheromone[road_id] *= ACO_CONGESTION_PENALTY
             self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
 
     def _on_incident(self, event: Event) -> None:
         """Handle incident injection - more aggressive pheromone reduction."""
         road_id = event.data.get("road_id")
+        # Track this road as having an incident
+        self._incident_roads.add(road_id)
         if road_id in self._pheromone:
-            # 70% reduction (more aggressive than congestion)
-            self._pheromone[road_id] *= 0.3
+            # More aggressive reduction than congestion
+            self._pheromone[road_id] *= ACO_INCIDENT_PENALTY
             self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
 
     def _update_visualization(self, state: SimulationState) -> None:
@@ -201,14 +233,29 @@ class ACOAlgorithm(BaseAlgorithm):
             "rho": self.rho,
         }
 
+    def toggle(self, enabled: bool) -> None:
+        """Enable or disable the algorithm, managing event subscriptions."""
+        was_enabled = self.enabled
+        super().toggle(enabled)
+
+        if enabled and not was_enabled:
+            # Re-subscribe to events when re-enabled
+            self._subscribe_events()
+        elif not enabled and was_enabled:
+            # Unsubscribe from events when disabled
+            self._unsubscribe_events()
+
     def reset(self) -> None:
         """Reset ACO algorithm."""
+        # Unsubscribe from events before reset
+        self._unsubscribe_events()
+
         super().reset()
 
         # Reset pheromone to initial levels
         for road_id in self._pheromone:
             self._pheromone[road_id] = 1.0
 
+        self._incident_roads.clear()
         self._total_reroutes = 0
         self._avg_pheromone = 1.0
-        self._tick_counter = 0
