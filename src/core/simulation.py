@@ -1,7 +1,7 @@
 """Main simulation loop controller."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 from pathlib import Path
 import time
 
@@ -28,6 +28,11 @@ class Simulation:
     # Flags
     running: bool = field(default=False, init=False)
     _initialized: bool = field(default=False, init=False)
+
+    # Congestion tracking
+    _congested_roads: Set[int] = field(default_factory=set, init=False)
+    _CONGESTION_THRESHOLD: float = field(default=0.7, init=False)
+    _CONGESTION_CLEAR_THRESHOLD: float = field(default=0.5, init=False)
 
     def __post_init__(self) -> None:
         """Set up event subscriptions."""
@@ -131,6 +136,16 @@ class Simulation:
         # Update vehicles
         self._update_vehicles(dt)
 
+        # Update network (roads, intersections) - handles incident timers
+        if self.state.network:
+            self.state.network.update(dt)
+
+        # Check for congestion changes
+        self._check_congestion()
+
+        # Reroute vehicles using ACO weights if available
+        self._reroute_vehicles(tick)
+
         # Spawn new vehicles
         self._spawn_vehicles()
 
@@ -192,6 +207,54 @@ class Simulation:
                         source="simulation",
                     ))
 
+    def _check_congestion(self) -> None:
+        """Check roads for congestion changes and publish events."""
+        if not self.state.network:
+            return
+
+        for road_id, road in self.state.network.roads.items():
+            density = road.get_density()
+            was_congested = road_id in self._congested_roads
+
+            if not was_congested and density >= self._CONGESTION_THRESHOLD:
+                # New congestion detected
+                self._congested_roads.add(road_id)
+                self.event_bus.publish(Event(
+                    type=EventType.CONGESTION_DETECTED,
+                    data={"road_id": road_id, "density": density},
+                    source="simulation",
+                ))
+            elif was_congested and density < self._CONGESTION_CLEAR_THRESHOLD:
+                # Congestion cleared (hysteresis)
+                self._congested_roads.discard(road_id)
+                self.event_bus.publish(Event(
+                    type=EventType.CONGESTION_CLEARED,
+                    data={"road_id": road_id, "density": density},
+                    source="simulation",
+                ))
+
+    def _reroute_vehicles(self, tick: int) -> None:
+        """Reroute vehicles using ACO weights if available."""
+        if not self.state.network:
+            return
+
+        # Get ACO algorithm if enabled
+        aco = self.state.get_algorithm("aco")
+        if not aco or not aco.enabled:
+            return
+
+        weights = aco.get_route_weights()
+        reroute_interval = self.settings.simulation.reroute_interval
+
+        for vehicle in self.state.vehicles.values():
+            # Check if enough time passed since last reroute
+            if tick - vehicle._last_reroute_tick < reroute_interval:
+                continue
+
+            if vehicle.reroute(self.state.network, weights, tick):
+                # Vehicle rerouted successfully
+                aco._total_reroutes += 1
+
     def pause(self) -> None:
         """Pause the simulation."""
         self.clock.pause()
@@ -221,6 +284,7 @@ class Simulation:
         self.state.reset()
         self.clock.reset()
         self.event_bus.clear_pending()
+        self._congested_roads.clear()
 
         self.event_bus.publish(Event(
             type=EventType.SIMULATION_RESET,

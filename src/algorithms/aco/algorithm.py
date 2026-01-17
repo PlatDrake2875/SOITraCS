@@ -70,6 +70,7 @@ class ACOAlgorithm(BaseAlgorithm):
         event_bus = get_event_bus()
         event_bus.subscribe(EventType.VEHICLE_ARRIVED, self._on_vehicle_arrived)
         event_bus.subscribe(EventType.CONGESTION_DETECTED, self._on_congestion)
+        event_bus.subscribe(EventType.INCIDENT_INJECTED, self._on_incident)
 
         self._initialized = True
 
@@ -149,6 +150,14 @@ class ACOAlgorithm(BaseAlgorithm):
         if road_id in self._pheromone:
             # Reduce pheromone on congested road
             self._pheromone[road_id] *= 0.5
+            self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
+
+    def _on_incident(self, event: Event) -> None:
+        """Handle incident injection - more aggressive pheromone reduction."""
+        road_id = event.data.get("road_id")
+        if road_id in self._pheromone:
+            # 70% reduction (more aggressive than congestion)
+            self._pheromone[road_id] *= 0.3
             self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
 
     def _update_visualization(self, state: SimulationState) -> None:

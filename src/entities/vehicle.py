@@ -1,7 +1,7 @@
 """Vehicle entity with cellular automaton movement."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import List, Optional, Tuple, Dict, TYPE_CHECKING
 from enum import Enum, auto
 import random
 
@@ -48,6 +48,7 @@ class Vehicle:
     total_time: int = field(default=0, init=False)
     wait_time: int = field(default=0, init=False)
     _route_index: int = field(default=0, init=False)
+    _last_reroute_tick: int = field(default=0, init=False)
 
     # For interpolation (rendering)
     prev_position: int = field(default=0, init=False)
@@ -253,6 +254,54 @@ class Vehicle:
         self.total_time = 0
         self.wait_time = 0
         self._route_index = 0
+        self._last_reroute_tick = 0
+
+    def can_reroute(self) -> bool:
+        """Check if vehicle is eligible for rerouting (at start of road)."""
+        # Only reroute at start of a road (position < 3 cells)
+        # And not arrived/despawned
+        return self.position < 3 and self.state == VehicleState.MOVING
+
+    def reroute(
+        self,
+        network: "RoadNetwork",
+        weights: Dict[int, float],
+        current_tick: int
+    ) -> bool:
+        """
+        Recalculate route using new weights.
+
+        Returns True if route changed.
+        """
+        if not self.can_reroute():
+            return False
+
+        # Get current road
+        current_road = network.get_road(self.current_road_id)
+        if not current_road:
+            return False
+
+        # Get remaining route from current position
+        remaining_route = self.route[self._route_index:]
+        if len(remaining_route) <= 1:
+            # At or near destination, don't reroute
+            return False
+
+        # Calculate new route from current intersection to destination
+        current_intersection = current_road.from_intersection
+        new_route = network.find_route(current_intersection, self.destination, weights)
+
+        if not new_route:
+            return False
+
+        # Check if new route is different
+        if new_route == remaining_route:
+            return False
+
+        # Update route (keep completed roads + new route)
+        self.route = self.route[:self._route_index] + new_route
+        self._last_reroute_tick = current_tick
+        return True
 
     @classmethod
     def spawn(

@@ -26,6 +26,7 @@ class SimulationSettings:
     min_gap: int = 1  # Minimum gap between vehicles (cells)
     spawn_rate: float = 0.1  # Default spawn rate (vehicles/tick)
     max_vehicles: int = 500  # Performance cap
+    reroute_interval: int = 20  # Ticks between vehicle reroute attempts
 
 
 @dataclass

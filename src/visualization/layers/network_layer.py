@@ -47,12 +47,13 @@ class NetworkLayer(BaseLayer):
             return
 
         # Render in order: roads, intersections (covers road ends)
-        self._render_roads(surface, offset, zoom)
+        self._render_roads(surface, state, offset, zoom)
         self._render_intersections(surface, offset, zoom)
 
     def _render_roads(
         self,
         surface: pygame.Surface,
+        state: SimulationState,
         offset: Tuple[float, float],
         zoom: float
     ) -> None:
@@ -73,8 +74,17 @@ class NetworkLayer(BaseLayer):
             # Calculate road width based on lanes (both directions)
             width = int(self.lane_width * 2 * zoom)  # 2 lanes (each direction)
 
+            # Check if either direction has an incident
+            has_incident = road.has_incident
+            # Also check reverse road if it exists
+            for other_road in self.network.roads.values():
+                if (other_road.from_intersection == road.to_intersection and
+                    other_road.to_intersection == road.from_intersection):
+                    has_incident = has_incident or other_road.has_incident
+                    break
+
             # Draw road as a thick line with rounded caps
-            self._draw_road_segment(surface, start, end, width, zoom)
+            self._draw_road_segment(surface, start, end, width, zoom, has_incident)
 
     def _draw_road_segment(
         self,
@@ -82,7 +92,8 @@ class NetworkLayer(BaseLayer):
         start: Tuple[int, int],
         end: Tuple[int, int],
         width: int,
-        zoom: float
+        zoom: float,
+        has_incident: bool = False
     ) -> None:
         """Draw a road segment with rounded ends and lane markings."""
         # Calculate direction vector
@@ -110,13 +121,16 @@ class NetworkLayer(BaseLayer):
         ]
         corners = [(int(x), int(y)) for x, y in corners]
 
+        # Choose road color based on incident status
+        road_color = Colors.CONGESTION_HIGH if has_incident else Colors.ROAD
+
         # Draw road surface
-        pygame.draw.polygon(surface, Colors.ROAD, corners)
+        pygame.draw.polygon(surface, road_color, corners)
 
         # Draw rounded end caps
         cap_radius = half_width
-        pygame.draw.circle(surface, Colors.ROAD, start, cap_radius)
-        pygame.draw.circle(surface, Colors.ROAD, end, cap_radius)
+        pygame.draw.circle(surface, road_color, start, cap_radius)
+        pygame.draw.circle(surface, road_color, end, cap_radius)
 
         # Draw center line (dashed) - lane divider between directions
         self._draw_dashed_line(surface, start, end, Colors.LANE_DIVIDER, zoom)
