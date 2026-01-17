@@ -143,6 +143,9 @@ class SOTLAlgorithm(BaseAlgorithm):
         self._total_phase_changes = 0
         self._average_green_time = 0.0
 
+        # PSO integration
+        self._subscribed = False
+
     def initialize(self, network: RoadNetwork, state: SimulationState) -> None:
         """Initialize SOTL controllers for all intersections."""
         self._network = network
@@ -163,7 +166,44 @@ class SOTLAlgorithm(BaseAlgorithm):
             )
             self._controllers[int_id] = controller
 
+        # Subscribe to PSO timing suggestions
+        self._subscribe_events()
+
         self._initialized = True
+
+    def _subscribe_events(self) -> None:
+        """Subscribe to relevant events."""
+        if self._subscribed:
+            return
+
+        event_bus = get_event_bus()
+        event_bus.subscribe(EventType.SIGNAL_TIMING_SUGGESTED, self._on_timing_suggested)
+        self._subscribed = True
+
+    def _on_timing_suggested(self, event: Event) -> None:
+        """
+        Apply PSO timing suggestion with smoothing.
+
+        Uses 70% old + 30% new to prevent oscillation.
+        """
+        if not self.enabled:
+            return
+
+        int_id = event.data.get("intersection_id")
+        if int_id not in self._controllers:
+            return
+
+        controller = self._controllers[int_id]
+        new_min = event.data.get("min_green", controller.min_green)
+        new_max = event.data.get("max_green", controller.max_green)
+
+        # Smooth transition (30% new, 70% old) to prevent oscillation
+        controller.min_green = int(0.7 * controller.min_green + 0.3 * new_min)
+        controller.max_green = int(0.7 * controller.max_green + 0.3 * new_max)
+
+        # Ensure min <= max
+        if controller.min_green > controller.max_green:
+            controller.min_green = controller.max_green - 10
 
     def update(self, state: SimulationState, dt: float) -> Dict[str, Any]:
         """Update all SOTL controllers."""

@@ -2,6 +2,7 @@
 
 from typing import Tuple, Optional, Dict, Any, List
 import pygame
+import math
 
 from config.settings import Settings
 from config.colors import Colors
@@ -84,6 +85,10 @@ class OverlayLayer(BaseLayer):
             self._render_sotl_overlay(surface, vis_data, offset, zoom, opacity)
         elif algo_name == "aco":
             self._render_aco_overlay(surface, vis_data, offset, zoom, opacity)
+        elif algo_name == "pso":
+            self._render_pso_overlay(surface, vis_data, offset, zoom, opacity)
+        elif algo_name == "marl":
+            self._render_marl_overlay(surface, vis_data, offset, zoom, opacity)
         else:
             # Default rendering for other algorithms
             self._render_road_overlays(surface, vis_data, offset, zoom, opacity)
@@ -186,6 +191,119 @@ class OverlayLayer(BaseLayer):
             )
 
         surface.blit(overlay_surface, (0, 0))
+
+    def _render_pso_overlay(
+        self,
+        surface: pygame.Surface,
+        vis_data: AlgorithmVisualization,
+        offset: Tuple[float, float],
+        zoom: float,
+        opacity: float
+    ) -> None:
+        """Render PSO particles with fitness coloring and global best highlight."""
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+
+        # Render particles with fitness-based styling
+        for i, pos in enumerate(vis_data.points):
+            screen_pos = self.transform_point(pos, offset, zoom)
+
+            # Get color and size from vis_data
+            if i < len(vis_data.point_colors):
+                color = vis_data.point_colors[i]
+            else:
+                color = Colors.PSO_COLOR
+
+            if i < len(vis_data.point_sizes):
+                size = vis_data.point_sizes[i]
+            else:
+                size = 4.0
+
+            # First point is global best - render with glow
+            if i == 0:
+                # Outer glow
+                glow_alpha = int(60 * opacity)
+                pygame.draw.circle(
+                    overlay,
+                    (*Colors.PSO_COLOR, glow_alpha),
+                    screen_pos,
+                    int(12 * zoom)
+                )
+                # Inner bright core
+                pygame.draw.circle(
+                    overlay,
+                    (*Colors.PSO_COLOR, int(220 * opacity)),
+                    screen_pos,
+                    int(6 * zoom)
+                )
+            else:
+                # Regular particles
+                alpha = int(180 * opacity)
+                radius = max(2, int(size * zoom * 0.8))
+                pygame.draw.circle(
+                    overlay,
+                    (*color[:3], alpha) if len(color) >= 3 else (*color, alpha),
+                    screen_pos,
+                    radius
+                )
+
+        surface.blit(overlay, (0, 0))
+
+    def _render_marl_overlay(
+        self,
+        surface: pygame.Surface,
+        vis_data: AlgorithmVisualization,
+        offset: Tuple[float, float],
+        zoom: float,
+        opacity: float
+    ) -> None:
+        """Render MARL Q-value confidence halos with multi-ring pulsing animation."""
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+
+        # Animation tick for pulsing effect
+        tick = pygame.time.get_ticks() // 50
+
+        for int_id, color in vis_data.intersection_colors.items():
+            intersection = self.network.get_intersection(int_id)
+            if not intersection:
+                continue
+
+            pos = self.transform_point(intersection.position, offset, zoom)
+            confidence = vis_data.intersection_values.get(int_id, 0.0)
+
+            # Skip low confidence intersections
+            if confidence < 0.15:
+                continue
+
+            # Multi-ring effect (3 rings with pulsing)
+            for ring in range(3):
+                # Calculate pulse factor using sine wave
+                pulse = 1.0 + 0.15 * math.sin((tick + ring * 8) * 0.2)
+                radius = int((15 + ring * 8) * zoom * pulse)
+
+                # Alpha decreases for outer rings
+                alpha = int(90 * opacity * confidence * (1 - ring * 0.25))
+
+                # Width decreases for outer rings
+                width = max(2, int((3 - ring) * zoom))
+
+                pygame.draw.circle(
+                    overlay,
+                    (*color[:3], alpha) if len(color) >= 3 else (*color, alpha),
+                    pos,
+                    radius,
+                    width
+                )
+
+            # Center dot
+            center_alpha = int(200 * opacity * confidence)
+            pygame.draw.circle(
+                overlay,
+                (*color[:3], center_alpha) if len(color) >= 3 else (*color, center_alpha),
+                pos,
+                max(3, int(4 * zoom))
+            )
+
+        surface.blit(overlay, (0, 0))
 
     def _render_road_overlays(
         self,

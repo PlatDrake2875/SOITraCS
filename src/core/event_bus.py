@@ -28,6 +28,7 @@ class EventType(Enum):
     # Signal events
     SIGNAL_PHASE_CHANGED = auto()
     SIGNAL_TIMING_UPDATED = auto()
+    SIGNAL_TIMING_SUGGESTED = auto()  # PSO timing recommendations
 
     # Algorithm events
     PATTERN_RECOGNIZED = auto()        # SOM classification

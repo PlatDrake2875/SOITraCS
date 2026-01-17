@@ -40,9 +40,9 @@ som:
   pretrained_path: "data/pretrained_models/som_traffic_patterns.pkl"
 
 marl:
-  enabled: false           # Disabled by default (computationally heavy)
-  learning_rate: 0.001     # Neural network learning rate
+  enabled: false           # Disabled by default
+  learning_rate: 0.001     # Q-learning rate
   gamma: 0.99              # Discount factor for future rewards
-  epsilon: 0.1             # Exploration rate (epsilon-greedy)
-  pretrained_path: "data/pretrained_models/marl_signal_control.pt"
-  inference_only: true     # Use pre-trained weights, no online learning
+  epsilon: 0.0             # No exploration in inference mode
+  pretrained_path: "data/pretrained_models/marl_q_tables.pkl"
+  inference_only: true     # Visualization-only mode (no signal control)
