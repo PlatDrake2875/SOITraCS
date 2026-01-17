@@ -84,12 +84,14 @@ class SOMAlgorithm(BaseAlgorithm):
 
         # Try to load pretrained weights
         if self.pretrained_path:
-            try:
-                import pickle
-                with open(self.pretrained_path, 'rb') as f:
-                    self._weights = pickle.load(f)
-            except (FileNotFoundError, Exception):
-                pass  # Use random initialization
+            import os
+            if os.path.exists(self.pretrained_path):
+                try:
+                    data = np.load(self.pretrained_path, allow_pickle=False)
+                    self._weights = data['weights']
+                except Exception as e:
+                    import logging
+                    logging.warning(f"Failed to load SOM weights: {e}")
 
         self._initialized = True
 

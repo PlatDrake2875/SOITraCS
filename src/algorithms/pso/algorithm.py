@@ -2,16 +2,21 @@
 
 from typing import Dict, Any, Tuple, List
 from dataclasses import dataclass, field
-from concurrent.futures import Future
 import random
 import numpy as np
 from config.colors import Colors
+from config.constants import (
+    PSO_HIGH_QUEUE_THRESHOLD, PSO_VERY_HIGH_QUEUE_THRESHOLD,
+    PSO_SLOW_MIN_GREEN_THRESHOLD, PSO_LONG_MAX_GREEN_THRESHOLD,
+    PSO_LOW_QUEUE_THRESHOLD, PSO_QUICK_MIN_GREEN,
+    PSO_HIGH_QUEUE_PENALTY, PSO_LONG_PHASE_PENALTY,
+    PSO_BASELINE_PENALTY, PSO_INVALID_CONFIG_PENALTY, PSO_QUICK_SWITCH_BONUS,
+)
 from ..base import BaseAlgorithm, AlgorithmVisualization
 
 from src.entities.network import RoadNetwork
 from src.core.state import SimulationState
 from src.core.event_bus import Event, EventType, get_event_bus
-from src.utils.threading_utils import run_in_background
 
 
 @dataclass
@@ -61,8 +66,7 @@ class PSOAlgorithm(BaseAlgorithm):
         self._global_best_position: np.ndarray | None = None
         self._global_best_fitness = float('inf')
 
-        # Background threading
-        self._pending_future: Future | None = None
+        # Snapshots for fitness evaluation
         self._queues_snapshot: Dict[int, int] = {}
         self._timings_snapshot: Dict[int, Tuple[int, int]] = {}
 
@@ -112,9 +116,6 @@ class PSOAlgorithm(BaseAlgorithm):
             return {}
 
         self._tick_counter += 1
-
-        # Check for completed background computation
-        self._check_background_result()
 
         # Only optimize periodically
         if self._tick_counter % self.optimization_interval != 0:
@@ -176,23 +177,23 @@ class PSOAlgorithm(BaseAlgorithm):
             queue = self._queues_snapshot.get(int_id, 0)
 
             # Penalize timing mismatch with current queue state
-            if queue > 5 and min_green > 25:
+            if queue > PSO_HIGH_QUEUE_THRESHOLD and min_green > PSO_SLOW_MIN_GREEN_THRESHOLD:
                 # High queue but slow to switch - penalize
-                fitness += queue * (min_green - 15) * 0.1
-            elif queue < 2 and max_green > 50:
+                fitness += queue * (min_green - PSO_QUICK_MIN_GREEN) * PSO_HIGH_QUEUE_PENALTY
+            elif queue < PSO_LOW_QUEUE_THRESHOLD and max_green > PSO_LONG_MAX_GREEN_THRESHOLD:
                 # Low queue but unnecessarily long phases - penalize
-                fitness += (max_green - 40) * 0.05
+                fitness += (max_green - 40) * PSO_LONG_PHASE_PENALTY
             else:
                 # Baseline penalty proportional to queue
-                fitness += queue * 0.02
+                fitness += queue * PSO_BASELINE_PENALTY
 
             # Penalize invalid configurations (min_green > max_green)
             if min_green > max_green:
-                fitness += 10.0
+                fitness += PSO_INVALID_CONFIG_PENALTY
 
             # Reward responsive configurations for high-queue intersections
-            if queue > 8 and min_green < 15:
-                fitness -= 0.5  # Bonus for quick switching capability
+            if queue > PSO_VERY_HIGH_QUEUE_THRESHOLD and min_green < PSO_QUICK_MIN_GREEN:
+                fitness -= PSO_QUICK_SWITCH_BONUS  # Bonus for quick switching capability
 
         return fitness
 
@@ -260,6 +261,10 @@ class PSOAlgorithm(BaseAlgorithm):
             min_green = int(np.clip(self._global_best_position[i * 2], 10, 30))
             max_green = int(np.clip(self._global_best_position[i * 2 + 1], 30, 60))
 
+            # Validate min_green < max_green
+            if min_green >= max_green:
+                min_green = max(10, max_green - 20)
+
             event_bus.publish(Event(
                 type=EventType.SIGNAL_TIMING_SUGGESTED,
                 data={
@@ -272,19 +277,6 @@ class PSOAlgorithm(BaseAlgorithm):
 
         self._last_publish_tick = self._tick_counter
 
-    def _check_background_result(self) -> None:
-        """Check if background computation is complete."""
-        if self._pending_future is None:
-            return
-
-        if self._pending_future.done():
-            try:
-                result = self._pending_future.result()
-                # Apply result if needed
-            except Exception:
-                pass
-            self._pending_future = None
-
     def _update_visualization(self, state: SimulationState) -> None:
         """Update visualization data for PSO overlay with fitness coloring."""
         self._visualization = AlgorithmVisualization()
@@ -294,7 +286,7 @@ class PSOAlgorithm(BaseAlgorithm):
 
         # Calculate swarm statistics for convergence animation
         if self._particles:
-            positions = np.array([p.position[:2] for p in self._particles if len(p.position) >= 2])
+            positions = np.array([p.position for p in self._particles])
             if len(positions) > 0:
                 self._swarm_centroid = positions.mean(axis=0)
                 self._swarm_spread = positions.std()
@@ -374,7 +366,6 @@ class PSOAlgorithm(BaseAlgorithm):
         self._iterations = 0
         self._convergence_history.clear()
         self._tick_counter = 0
-        self._pending_future = None
         self._queues_snapshot.clear()
         self._timings_snapshot.clear()
         self._swarm_centroid = None

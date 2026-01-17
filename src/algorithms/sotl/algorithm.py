@@ -1,15 +1,16 @@
 """Self-Organizing Traffic Lights (SOTL) algorithm."""
 
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Callable
 from dataclasses import dataclass, field
 from config.colors import Colors
+from config.constants import SOTL_PSO_SMOOTHING_FACTOR, SOTL_SUGGESTION_COOLDOWN
 from ..base import BaseAlgorithm, AlgorithmVisualization
 
 from src.entities.network import RoadNetwork
 from src.entities.intersection import Intersection
 from src.entities.traffic_light import Direction
 from src.core.state import SimulationState
-from src.core.event_bus import Event, EventType, get_event_bus
+from src.core.event_bus import Event, EventType, EventHandler, get_event_bus
 
 
 @dataclass
@@ -145,6 +146,11 @@ class SOTLAlgorithm(BaseAlgorithm):
 
         # PSO integration
         self._subscribed = False
+        self._event_handlers: Dict[EventType, EventHandler] = {}
+        self._timing_suggestions_received = 0
+        self._timing_suggestions_applied = 0
+        self._current_tick = 0
+        self._last_suggestion_tick: Dict[int, int] = {}  # Per-intersection cooldown
 
     def initialize(self, network: RoadNetwork, state: SimulationState) -> None:
         """Initialize SOTL controllers for all intersections."""
@@ -177,33 +183,58 @@ class SOTLAlgorithm(BaseAlgorithm):
             return
 
         event_bus = get_event_bus()
-        event_bus.subscribe(EventType.SIGNAL_TIMING_SUGGESTED, self._on_timing_suggested)
+        self._event_handlers = {
+            EventType.SIGNAL_TIMING_SUGGESTED: self._on_timing_suggested,
+        }
+        for event_type, handler in self._event_handlers.items():
+            event_bus.subscribe(event_type, handler)
         self._subscribed = True
+
+    def _unsubscribe_events(self) -> None:
+        """Unsubscribe from all events."""
+        event_bus = get_event_bus()
+        for event_type, handler in self._event_handlers.items():
+            event_bus.unsubscribe(event_type, handler)
+        self._event_handlers.clear()
+        self._subscribed = False
 
     def _on_timing_suggested(self, event: Event) -> None:
         """
         Apply PSO timing suggestion with smoothing.
 
-        Uses 70% old + 30% new to prevent oscillation.
+        Uses smoothing factor from config to prevent oscillation.
+        Includes per-intersection cooldown for rate limiting.
         """
         if not self.enabled:
             return
 
+        self._timing_suggestions_received += 1
+
         int_id = event.data.get("intersection_id")
         if int_id not in self._controllers:
+            return
+
+        # Rate limiting: skip if within cooldown period
+        last_tick = self._last_suggestion_tick.get(int_id, 0)
+        if self._current_tick - last_tick < SOTL_SUGGESTION_COOLDOWN:
             return
 
         controller = self._controllers[int_id]
         new_min = event.data.get("min_green", controller.min_green)
         new_max = event.data.get("max_green", controller.max_green)
 
-        # Smooth transition (30% new, 70% old) to prevent oscillation
-        controller.min_green = int(0.7 * controller.min_green + 0.3 * new_min)
-        controller.max_green = int(0.7 * controller.max_green + 0.3 * new_max)
+        # Smooth transition using config constant to prevent oscillation
+        smoothing_new = SOTL_PSO_SMOOTHING_FACTOR
+        smoothing_old = 1.0 - smoothing_new
+        controller.min_green = round(smoothing_old * controller.min_green + smoothing_new * new_min)
+        controller.max_green = round(smoothing_old * controller.max_green + smoothing_new * new_max)
 
-        # Ensure min <= max
+        # Ensure min <= max with minimum floor of 5
         if controller.min_green > controller.max_green:
-            controller.min_green = controller.max_green - 10
+            controller.min_green = max(5, controller.max_green - 10)
+
+        self._timing_suggestions_applied += 1
+        self._last_suggestion_tick[int_id] = self._current_tick
 
     def update(self, state: SimulationState, dt: float) -> Dict[str, Any]:
         """Update all SOTL controllers."""
@@ -211,6 +242,7 @@ class SOTLAlgorithm(BaseAlgorithm):
             return {}
 
         tick = state.current_metrics.tick
+        self._current_tick = tick  # Track for rate limiting
         phase_changes = 0
 
         # First, update queue counts from actual vehicle positions
@@ -298,18 +330,32 @@ class SOTLAlgorithm(BaseAlgorithm):
             "theta": float(self.theta),
             "mu": float(self.mu),
             "omega": float(self.omega),
+            "pso_suggestions_received": float(self._timing_suggestions_received),
+            "pso_suggestions_applied": float(self._timing_suggestions_applied),
         }
 
     def reset(self) -> None:
         """Reset SOTL algorithm."""
+        self._unsubscribe_events()
         super().reset()
         for controller in self._controllers.values():
             controller.reset()
         self._total_phase_changes = 0
+        self._timing_suggestions_received = 0
+        self._timing_suggestions_applied = 0
+        self._current_tick = 0
+        self._last_suggestion_tick.clear()
 
     def toggle(self, enabled: bool) -> None:
         """Enable/disable SOTL control."""
+        was_enabled = self.enabled
         super().toggle(enabled)
+
+        # Handle event subscription based on toggle state
+        if enabled and not was_enabled:
+            self._subscribe_events()
+        elif not enabled and was_enabled:
+            self._unsubscribe_events()
 
         # Update all intersections
         if self._network:

@@ -37,12 +37,12 @@ som:
   grid_size: [10, 10]      # SOM grid dimensions
   learning_rate: 0.5       # Initial learning rate
   sigma: 3.0               # Initial neighborhood radius
-  pretrained_path: "data/pretrained_models/som_traffic_patterns.pkl"
+  pretrained_path: "data/pretrained_models/som_traffic_patterns.npz"
 
 marl:
   enabled: false           # Disabled by default
   learning_rate: 0.001     # Q-learning rate
   gamma: 0.99              # Discount factor for future rewards
   epsilon: 0.0             # No exploration in inference mode
-  pretrained_path: "data/pretrained_models/marl_q_tables.pkl"
+  pretrained_path: "data/pretrained_models/marl_q_tables.npz"
   inference_only: true     # Visualization-only mode (no signal control)

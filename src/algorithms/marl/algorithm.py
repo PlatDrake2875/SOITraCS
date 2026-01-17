@@ -88,16 +88,15 @@ class MARLAlgorithm(BaseAlgorithm):
         """Try to load pretrained Q-tables from file."""
         try:
             if self.pretrained_path and os.path.exists(self.pretrained_path):
-                import pickle
-                with open(self.pretrained_path, 'rb') as f:
-                    loaded_tables = pickle.load(f)
-                    # Only load tables for intersections we have
-                    for int_id in self._q_tables:
-                        if int_id in loaded_tables:
-                            self._q_tables[int_id] = loaded_tables[int_id]
+                data = np.load(self.pretrained_path, allow_pickle=False)
+                for int_id in self._q_tables:
+                    key = str(int_id)
+                    if key in data:
+                        self._q_tables[int_id] = data[key]
                 return True
-        except Exception:
-            pass
+        except (FileNotFoundError, ValueError, KeyError) as e:
+            import logging
+            logging.warning(f"Failed to load MARL weights: {e}")
         return False
 
     def _initialize_heuristic_qtables(self) -> None:
@@ -144,7 +143,7 @@ class MARLAlgorithm(BaseAlgorithm):
             # Calculate confidence (difference between Q-values)
             q_values = self._q_tables[int_id][current_state]
             confidence = abs(q_values[0] - q_values[1])
-            self._agent_confidences[int_id] = min(1.0, confidence / 1.0)
+            self._agent_confidences[int_id] = min(1.0, confidence)
 
             # ONLY execute action if NOT in inference_only mode
             # In inference_only mode, MARL is visualization-only
@@ -152,11 +151,10 @@ class MARLAlgorithm(BaseAlgorithm):
                 if action == 1:  # Switch phase
                     intersection.request_phase_change()
 
-            # Calculate reward (negative delay)
-            reward = -state.current_metrics.average_delay
+                # Calculate reward (negative delay)
+                reward = -state.current_metrics.average_delay
 
-            # Q-learning update (only if not inference-only)
-            if not self.inference_only:
+                # Q-learning update
                 old_state = self._agent_states[int_id]
                 old_action = self._agent_actions[int_id]
 
@@ -168,12 +166,14 @@ class MARLAlgorithm(BaseAlgorithm):
                 )
                 self._q_tables[int_id][old_state, old_action] = new_q
 
+                self._total_rewards += reward
+                total_reward += reward
+
             # Store state/action for next update
             self._agent_states[int_id] = current_state
             self._agent_actions[int_id] = action
-            total_reward += reward
 
-        self._total_rewards += total_reward
+        # Track total rewards only when not in inference mode (already added per intersection)
         self._episode_rewards.append(total_reward)
         if len(self._episode_rewards) > 300:
             self._episode_rewards = self._episode_rewards[-300:]
@@ -261,7 +261,5 @@ class MARLAlgorithm(BaseAlgorithm):
 
     def save_qtables(self, path: str) -> None:
         """Save current Q-tables to file."""
-        import pickle
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'wb') as f:
-            pickle.dump(self._q_tables, f)
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        np.savez(path, **{str(k): v for k, v in self._q_tables.items()})

@@ -259,8 +259,8 @@ class OverlayLayer(BaseLayer):
         """Render MARL Q-value confidence halos with multi-ring pulsing animation."""
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # Animation tick for pulsing effect
-        tick = pygame.time.get_ticks() // 50
+        # Animation tick for pulsing effect (modulo to prevent overflow)
+        tick = (pygame.time.get_ticks() // 50) % 1000
 
         for int_id, color in vis_data.intersection_colors.items():
             intersection = self.network.get_intersection(int_id)
