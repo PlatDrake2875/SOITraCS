@@ -1,5 +1,8 @@
 """Centralized constants for the traffic simulation."""
 
+# Incident handling
+PERMANENT_INCIDENT_DURATION = -1  # Sentinel for never-expiring incidents
+
 # Vehicle rerouting
 REROUTE_POSITION_THRESHOLD = 3  # Max cells from road start to allow reroute
 

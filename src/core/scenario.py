@@ -1,10 +1,15 @@
 """Scenario management for traffic presets."""
 
+import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, TYPE_CHECKING, Any
+from typing import Dict, List, Optional, Set, TYPE_CHECKING, Any
+
+from config.constants import PERMANENT_INCIDENT_DURATION
 
 if TYPE_CHECKING:
     from .simulation import Simulation
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -19,7 +24,10 @@ class ScenarioConfig:
     def from_dict(cls, name: str, data: Dict[str, Any]) -> "ScenarioConfig":
         """Create from dictionary."""
         blocked = data.get("blocked_roads", [])
-        if "blocked_road" in data:  # Singular form from YAML
+        if "blocked_road" in data:  # Singular form from YAML (deprecated)
+            logger.warning(
+                f"Scenario '{name}': 'blocked_road' is deprecated, use 'blocked_roads'"
+            )
             blocked = [data["blocked_road"]]
         return cls(
             name=name,
@@ -36,7 +44,7 @@ class ScenarioManager:
         self.scenarios = scenarios
         self.active_scenario: Optional[str] = None
         self._start_tick: int = 0
-        self._active_incidents: List[int] = []
+        self._active_incidents: Set[int] = set()
 
     def activate(self, name: str, simulation: "Simulation", tick: int) -> bool:
         """Activate a scenario."""
@@ -56,8 +64,17 @@ class ScenarioManager:
 
         # Block roads (inject incidents)
         for road_id in config.blocked_roads:
-            simulation.inject_incident(road_id, duration=99999)
-            self._active_incidents.append(road_id)
+            # Validate road exists before injection
+            road = simulation.state.network.get_road(road_id)
+            if road is None:
+                logger.warning(
+                    f"Scenario '{name}': blocked_road {road_id} does not exist, skipping"
+                )
+                continue
+            simulation.inject_incident(
+                road_id, duration=PERMANENT_INCIDENT_DURATION, source="scenario"
+            )
+            self._active_incidents.add(road_id)
 
         return True
 
@@ -69,11 +86,11 @@ class ScenarioManager:
         # Reset spawn rate
         simulation.set_spawn_multiplier(1.0)
 
-        # Clear incidents we created
+        # Clear incidents we created (only if we own them)
         for road_id in self._active_incidents:
             road = simulation.state.network.get_road(road_id)
             if road:
-                road.clear_incident()
+                road.clear_incident(source="scenario")
         self._active_incidents.clear()
 
         self.active_scenario = None
@@ -87,7 +104,15 @@ class ScenarioManager:
         if config.duration > 0:
             elapsed = tick - self._start_tick
             if elapsed >= config.duration:
+                from .event_bus import Event, EventType
+
+                expired_scenario = self.active_scenario
                 self.deactivate(simulation)
+                simulation.event_bus.publish(Event(
+                    type=EventType.SCENARIO_ENDED,
+                    data={"scenario": expired_scenario, "reason": "duration_expired"},
+                    source="scenario_manager",
+                ))
 
     def get_active(self) -> Optional[str]:
         """Get active scenario name."""

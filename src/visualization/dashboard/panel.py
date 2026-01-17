@@ -1,5 +1,6 @@
 """Dashboard panel for metrics and controls."""
 
+import logging
 from typing import Dict, List, Optional, Tuple, Any, Callable
 import pygame
 import numpy as np
@@ -8,6 +9,8 @@ from config.settings import Settings
 from config.colors import Colors
 from src.core.state import SimulationState
 from .sparkline import SparklineGraph
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardPanel:
@@ -26,7 +29,8 @@ class DashboardPanel:
         self,
         rect: pygame.Rect,
         settings: Settings,
-        state: SimulationState
+        state: SimulationState,
+        get_active_scenario: Optional[Callable[[], Optional[str]]] = None
     ) -> None:
         self.rect = rect
         self.settings = settings
@@ -41,7 +45,12 @@ class DashboardPanel:
 
         # UI state
         self._toggle_states: Dict[str, bool] = {}
-        self._button_rects: Dict[str, pygame.Rect] = {}
+
+        # Separate button registries to avoid collision
+        self._algorithm_buttons: Dict[str, pygame.Rect] = {}
+        self._scenario_buttons: Dict[str, pygame.Rect] = {}
+        self._speed_buttons: Dict[float, pygame.Rect] = {}
+        self._control_buttons: Dict[str, pygame.Rect] = {}
 
         # Callbacks
         self._on_algorithm_toggle: Optional[Callable[[str], None]] = None
@@ -49,8 +58,8 @@ class DashboardPanel:
         self._on_pause_toggle: Optional[Callable[[], None]] = None
         self._on_scenario_change: Optional[Callable[[str], None]] = None
 
-        # Active scenario tracking
-        self._active_scenario: Optional[str] = None
+        # Callback to query actual simulation scenario state
+        self._get_active_scenario = get_active_scenario
 
         # Sparkline graphs
         self._sparklines = {
@@ -229,7 +238,7 @@ class DashboardPanel:
             btn_x = x + col * (col_width + self.padding)
             btn_rect = pygame.Rect(btn_x, y, col_width, self.item_height - 6)
 
-            self._button_rects[algo_name] = btn_rect
+            self._algorithm_buttons[algo_name] = btn_rect
             self._toggle_states[algo_name] = enabled
 
             # Draw button with colored border when enabled
@@ -280,8 +289,10 @@ class DashboardPanel:
                 return pattern.upper()[:8]
             elif name == "marl":
                 return f"Rwd: {metrics.get('avg_reward', 0):.1f}"
-        except Exception:
-            pass
+        except (KeyError, TypeError, AttributeError) as e:
+            logger.debug(f"Expected error getting metrics for {name}: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error getting metrics for '{name}': {e}")
         return ""
 
     def _render_scenario_buttons(
@@ -298,19 +309,30 @@ class DashboardPanel:
         surface.blit(header, (x, y))
         y += header.get_height() + 10
 
-        # Scenario buttons
-        scenarios = [("normal", "Normal"), ("rush_hour", "Rush"), ("incident", "Incident")]
-        btn_width = (self.rect.width - 2 * self.padding - 2 * 6) // 3
+        # Build scenario list dynamically from network
+        scenarios: List[Tuple[str, str]] = [("normal", "Normal")]
+        if state.network and state.network.scenarios:
+            for name in state.network.scenarios.keys():
+                display = name.replace("_", " ").title()[:8]
+                scenarios.append((name, display))
+        scenarios = scenarios[:4]  # Limit to fit UI
+
+        # Query actual active scenario from simulation
+        active_scenario = (
+            self._get_active_scenario() if self._get_active_scenario else None
+        )
+
+        btn_width = (self.rect.width - 2 * self.padding - (len(scenarios) - 1) * 6) // len(scenarios)
 
         for i, (scenario_id, label) in enumerate(scenarios):
             btn_x = x + i * (btn_width + 6)
             btn_rect = pygame.Rect(btn_x, y, btn_width, self.item_height - 4)
 
-            self._button_rects[f"scenario_{scenario_id}"] = btn_rect
+            self._scenario_buttons[scenario_id] = btn_rect
 
             # Highlight active scenario
-            is_active = (self._active_scenario == scenario_id) or \
-                        (self._active_scenario is None and scenario_id == "normal")
+            is_active = (active_scenario == scenario_id) or \
+                        (active_scenario is None and scenario_id == "normal")
             bg_color = Colors.TOGGLE_ON if is_active else Colors.BUTTON_NORMAL
             pygame.draw.rect(surface, bg_color, btn_rect, border_radius=4)
 
@@ -343,7 +365,7 @@ class DashboardPanel:
             btn_x = x + i * (btn_width + 6)
             btn_rect = pygame.Rect(btn_x, y, btn_width, self.item_height - 4)
 
-            self._button_rects[f"speed_{speed}"] = btn_rect
+            self._speed_buttons[speed] = btn_rect
 
             bg_color = Colors.BUTTON_NORMAL
             pygame.draw.rect(surface, bg_color, btn_rect, border_radius=4)
@@ -357,7 +379,7 @@ class DashboardPanel:
 
         # Pause button
         pause_rect = pygame.Rect(x, y, self.rect.width - 2 * self.padding, self.item_height - 4)
-        self._button_rects["pause"] = pause_rect
+        self._control_buttons["pause"] = pause_rect
 
         pygame.draw.rect(surface, Colors.BUTTON_NORMAL, pause_rect, border_radius=4)
         pause_label = self.font_small.render("PAUSE (Space)", True, Colors.TEXT_PRIMARY)
@@ -369,30 +391,33 @@ class DashboardPanel:
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[Dict[str, Any]]:
         """Handle click on dashboard. Returns action info or None."""
-        for algo_name, rect in self._button_rects.items():
+        # Check algorithm buttons
+        for algo_name, rect in self._algorithm_buttons.items():
             if rect.collidepoint(pos):
-                if algo_name.startswith("speed_"):
-                    speed = float(algo_name.split("_")[1])
-                    if self._on_speed_change:
-                        self._on_speed_change(speed)
-                    return {"action": "speed_change", "speed": speed}
+                if self._on_algorithm_toggle:
+                    self._on_algorithm_toggle(algo_name)
+                return {"action": "algorithm_toggle", "algorithm": algo_name}
 
-                elif algo_name == "pause":
+        # Check scenario buttons
+        for scenario_id, rect in self._scenario_buttons.items():
+            if rect.collidepoint(pos):
+                if self._on_scenario_change:
+                    self._on_scenario_change(scenario_id)
+                return {"action": "scenario_change", "scenario": scenario_id}
+
+        # Check speed buttons
+        for speed, rect in self._speed_buttons.items():
+            if rect.collidepoint(pos):
+                if self._on_speed_change:
+                    self._on_speed_change(speed)
+                return {"action": "speed_change", "speed": speed}
+
+        # Check control buttons
+        for control_name, rect in self._control_buttons.items():
+            if rect.collidepoint(pos):
+                if control_name == "pause":
                     if self._on_pause_toggle:
                         self._on_pause_toggle()
                     return {"action": "pause_toggle"}
-
-                elif algo_name.startswith("scenario_"):
-                    scenario = algo_name.split("_", 1)[1]
-                    self._active_scenario = None if scenario == "normal" else scenario
-                    if self._on_scenario_change:
-                        self._on_scenario_change(scenario)
-                    return {"action": "scenario_change", "scenario": scenario}
-
-                else:
-                    # Algorithm toggle
-                    if self._on_algorithm_toggle:
-                        self._on_algorithm_toggle(algo_name)
-                    return {"action": "algorithm_toggle", "algorithm": algo_name}
 
         return None

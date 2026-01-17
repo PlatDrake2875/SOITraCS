@@ -1,9 +1,12 @@
 """Main simulation loop controller."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Set
 from pathlib import Path
 import time
+
+logger = logging.getLogger(__name__)
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
 from .state import SimulationState
@@ -330,17 +333,19 @@ class Simulation:
             return algo.enabled
         return None
 
-    def inject_incident(self, road_id: int, duration: int = 100) -> bool:
+    def inject_incident(
+        self, road_id: int, duration: int = 100, source: str = "user"
+    ) -> bool:
         """Inject an incident on a road."""
         if not self.state.network:
             return False
 
         road = self.state.network.get_road(road_id)
         if road:
-            road.set_incident(duration)
+            road.set_incident(duration, source=source)
             self.event_bus.publish(Event(
                 type=EventType.INCIDENT_INJECTED,
-                data={"road_id": road_id, "duration": duration},
+                data={"road_id": road_id, "duration": duration, "source": source},
                 source="simulation",
             ))
             return True
@@ -364,7 +369,10 @@ class Simulation:
 
     def set_spawn_multiplier(self, multiplier: float) -> None:
         """Set spawn rate multiplier."""
-        self._spawn_multiplier = max(0.0, min(5.0, multiplier))  # Clamp 0-5x
+        clamped = max(0.0, min(5.0, multiplier))
+        if clamped != multiplier:
+            logger.warning(f"Spawn multiplier {multiplier} clamped to {clamped}")
+        self._spawn_multiplier = clamped
 
     def activate_scenario(self, name: str) -> bool:
         """Activate a named scenario."""

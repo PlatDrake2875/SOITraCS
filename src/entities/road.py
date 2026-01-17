@@ -149,6 +149,7 @@ class Road:
     # Road properties
     _incident: bool = field(default=False, init=False)
     _incident_timer: int = field(default=0, init=False)
+    _incident_source: Optional[str] = field(default=None, init=False)
 
     # Pheromone level (for ACO)
     pheromone: float = field(default=1.0, init=False)
@@ -172,19 +173,34 @@ class Road:
         """Check if road has an active incident."""
         return self._incident
 
-    def set_incident(self, duration: int) -> None:
+    def set_incident(self, duration: int, source: str = "user") -> None:
         """Set an incident on this road."""
         self._incident = True
         self._incident_timer = duration
+        self._incident_source = source
 
-    def clear_incident(self) -> None:
-        """Clear incident on this road."""
+    def clear_incident(self, source: Optional[str] = None) -> bool:
+        """
+        Clear incident on this road.
+
+        Args:
+            source: If provided, only clear if we are the owner.
+
+        Returns:
+            True if incident was cleared, False if different owner.
+        """
+        if source is not None and self._incident_source != source:
+            return False  # Different owner, don't clear
         self._incident = False
         self._incident_timer = 0
+        self._incident_source = None
+        return True
 
     def update(self, dt: float = 1.0) -> None:
         """Update road state (incidents, etc.)."""
         if self._incident:
+            if self._incident_timer < 0:  # Permanent incident
+                return
             self._incident_timer -= 1
             if self._incident_timer <= 0:
                 self.clear_incident()
@@ -239,4 +255,5 @@ class Road:
             lane.reset()
         self._incident = False
         self._incident_timer = 0
+        self._incident_source = None
         self.pheromone = 1.0

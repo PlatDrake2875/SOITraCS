@@ -1,8 +1,11 @@
 """Simulation state container."""
 
+import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, TYPE_CHECKING
+from typing import Dict, FrozenSet, List, Any, TYPE_CHECKING
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.entities.vehicle import Vehicle
@@ -149,7 +152,19 @@ class SimulationState:
         for algo in self.algorithms.values():
             algo.reset()
 
+    # Valid metric names for get_metrics_array
+    _VALID_METRICS: FrozenSet[str] = frozenset(
+        ["tick", "total_vehicles", "vehicles_arrived", "vehicles_spawned",
+         "average_speed", "average_delay", "average_queue_length",
+         "throughput", "total_wait_time"]
+    )
+
     def get_metrics_array(self, metric_name: str, limit: int = 300) -> np.ndarray:
         """Get array of historical metric values for graphing."""
+        if metric_name not in self._VALID_METRICS:
+            logger.warning(
+                f"Unknown metric '{metric_name}'. Valid: {sorted(self._VALID_METRICS)}"
+            )
+            return np.array([])
         history = self.metrics_history[-limit:]
-        return np.array([getattr(m, metric_name, 0) for m in history])
+        return np.array([getattr(m, metric_name) for m in history])

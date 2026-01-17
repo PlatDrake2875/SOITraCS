@@ -36,14 +36,16 @@ class SparklineGraph:
 
         # Normalize to height
         min_val, max_val = float(data.min()), float(data.max())
-        if max_val == min_val:
-            max_val = min_val + 1  # Avoid division by zero
+        is_flat = (max_val == min_val)
 
         # Build points
         points = []
         for i, val in enumerate(data):
             px = x + int((i / (len(data) - 1)) * self.width)
-            py = y + self.height - int(((val - min_val) / (max_val - min_val)) * self.height)
+            if is_flat:
+                py = y + self.height // 2  # Center line for flat data
+            else:
+                py = y + self.height - int(((val - min_val) / (max_val - min_val)) * self.height)
             points.append((px, py))
 
         # Draw background rect (subtle)
