@@ -1,7 +1,7 @@
 """Road network graph with YAML loading."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional, Set
+from typing import Dict, List, Tuple, Optional, Set, Any
 from pathlib import Path
 import yaml
 import math
@@ -44,6 +44,9 @@ class RoadNetwork:
     intersections: Dict[int, Intersection] = field(default_factory=dict)
     roads: Dict[int, Road] = field(default_factory=dict)
     spawn_points: List[SpawnPoint] = field(default_factory=list)
+
+    # Scenario definitions (raw dict, parsed by ScenarioManager)
+    scenarios: Dict[str, Any] = field(default_factory=dict)
 
     # Adjacency for routing
     _adjacency: Dict[int, List[Tuple[int, int]]] = field(default_factory=dict)  # intersection -> [(neighbor, road_id)]
@@ -253,6 +256,9 @@ class RoadNetwork:
         for spawn_data in data.get("spawn_points", []):
             spawn_point = SpawnPoint.from_dict(spawn_data)
             network.spawn_points.append(spawn_point)
+
+        # Load scenarios (raw dict, ScenarioManager will parse)
+        network.scenarios = data.get("scenarios", {})
 
         # If no spawn points, create defaults at edge intersections
         if not network.spawn_points:

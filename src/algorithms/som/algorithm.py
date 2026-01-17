@@ -35,6 +35,11 @@ class SOMAlgorithm(BaseAlgorithm):
     def color(self) -> Tuple[int, int, int]:
         return Colors.SOM_COLOR
 
+    @property
+    def current_pattern(self) -> str:
+        """Get current detected traffic pattern."""
+        return self._current_pattern
+
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
 

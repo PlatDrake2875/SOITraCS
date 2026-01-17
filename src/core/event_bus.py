@@ -40,6 +40,10 @@ class EventType(Enum):
     ALGORITHM_TOGGLED = auto()
     SPEED_CHANGED = auto()
 
+    # Scenario events
+    SCENARIO_STARTED = auto()
+    SCENARIO_ENDED = auto()
+
 
 @dataclass
 class Event:

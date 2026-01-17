@@ -8,6 +8,7 @@ import time
 from .event_bus import EventBus, Event, EventType, get_event_bus
 from .state import SimulationState
 from .clock import SimulationClock
+from .scenario import ScenarioManager, ScenarioConfig
 from config.settings import Settings, get_settings
 from config.constants import CONGESTION_THRESHOLD, CONGESTION_CLEAR_THRESHOLD
 
@@ -32,6 +33,10 @@ class Simulation:
 
     # Congestion tracking
     _congested_roads: Set[int] = field(default_factory=set, init=False)
+
+    # Scenario management
+    _scenario_manager: Optional[ScenarioManager] = field(default=None, init=False)
+    _spawn_multiplier: float = field(default=1.0, init=False)
 
     def __post_init__(self) -> None:
         """Set up event subscriptions."""
@@ -58,6 +63,14 @@ class Simulation:
 
         # Initialize algorithms
         self._init_algorithms()
+
+        # Initialize scenario manager
+        if self.state.network and self.state.network.scenarios:
+            scenarios = {
+                name: ScenarioConfig.from_dict(name, data)
+                for name, data in self.state.network.scenarios.items()
+            }
+            self._scenario_manager = ScenarioManager(scenarios)
 
         self._initialized = True
 
@@ -151,6 +164,10 @@ class Simulation:
         # 8. Update metrics
         self.state.update_metrics(tick)
 
+        # 9. Update scenario timer
+        if self._scenario_manager:
+            self._scenario_manager.update(self, tick)
+
     def _update_vehicles(self, dt: float) -> None:
         """Update all vehicles."""
         from src.entities.vehicle import VehicleState
@@ -188,7 +205,8 @@ class Simulation:
 
         # Try each spawn point
         for spawn_point in self.state.network.spawn_points:
-            if random.random() < spawn_point.rate:
+            effective_rate = spawn_point.rate * self._spawn_multiplier
+            if random.random() < effective_rate:
                 # Create vehicle
                 vehicle = Vehicle.spawn(
                     vehicle_id=self.state.get_next_vehicle_id(),
@@ -343,3 +361,35 @@ class Simulation:
     def _on_speed_changed(self, event: Event) -> None:
         """Handle speed change event."""
         pass  # Already handled in set_speed()
+
+    def set_spawn_multiplier(self, multiplier: float) -> None:
+        """Set spawn rate multiplier."""
+        self._spawn_multiplier = max(0.0, min(5.0, multiplier))  # Clamp 0-5x
+
+    def activate_scenario(self, name: str) -> bool:
+        """Activate a named scenario."""
+        if not self._scenario_manager:
+            return False
+        success = self._scenario_manager.activate(name, self, self.clock.tick)
+        if success:
+            self.event_bus.publish(Event(
+                type=EventType.SCENARIO_STARTED,
+                data={"scenario": name},
+                source="simulation",
+            ))
+        return success
+
+    def deactivate_scenario(self) -> None:
+        """Deactivate current scenario."""
+        if self._scenario_manager and self._scenario_manager.active_scenario:
+            scenario_name = self._scenario_manager.active_scenario
+            self._scenario_manager.deactivate(self)
+            self.event_bus.publish(Event(
+                type=EventType.SCENARIO_ENDED,
+                data={"scenario": scenario_name},
+                source="simulation",
+            ))
+
+    def get_active_scenario(self) -> Optional[str]:
+        """Get currently active scenario name."""
+        return self._scenario_manager.get_active() if self._scenario_manager else None

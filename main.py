@@ -87,7 +87,8 @@ class Application:
             self.renderer.dashboard.set_callbacks(
                 on_algorithm_toggle=self._on_algorithm_toggle,
                 on_speed_change=self._on_speed_change,
-                on_pause_toggle=self._on_pause_toggle
+                on_pause_toggle=self._on_pause_toggle,
+                on_scenario_change=self._on_scenario_change
             )
 
     def run(self) -> None:
@@ -182,6 +183,16 @@ class Application:
         elif event.key == pygame.K_m:
             self._on_algorithm_toggle("marl")
 
+        # Scenario shortcuts
+        elif event.key == pygame.K_F1:
+            self._on_scenario_change("normal")
+
+        elif event.key == pygame.K_F2:
+            self._on_scenario_change("rush_hour")
+
+        elif event.key == pygame.K_F3:
+            self._on_scenario_change("incident")
+
     def _handle_mouse_click(self, event: pygame.event.Event) -> None:
         """Handle mouse click events."""
         if event.button == 1:  # Left click
@@ -262,6 +273,16 @@ class Application:
             paused = self.simulation.toggle_pause()
             status = "paused" if paused else "resumed"
             print(f"Simulation {status}")
+
+    def _on_scenario_change(self, scenario: str) -> None:
+        """Handle scenario change."""
+        if self.simulation:
+            if scenario == "normal":
+                self.simulation.deactivate_scenario()
+                print("Scenario: Normal")
+            else:
+                if self.simulation.activate_scenario(scenario):
+                    print(f"Scenario: {scenario} activated")
 
     def _draw_fps(self) -> None:
         """Draw FPS counter."""
