@@ -1,0 +1,101 @@
+# Ablation Study Configuration
+# Tests individual and combined algorithm contributions to measure the
+# importance of each component in the SOITCS system.
+#
+# Study Design:
+# 1. Additive Ablation: Build up from CA-only baseline
+# 2. Two-way Combinations: Test algorithm interactions
+# 3. Full Stack: All algorithms enabled
+# 4. Subtractive Ablation: Remove one algorithm at a time from full stack
+
+experiments:
+  # === BASELINE ===
+  - name: "baseline_ca_only"
+    algorithms: ["cellular_automata"]
+    description: "No adaptive control (fixed signals)"
+
+  # === SINGLE ALGORITHM ADDITIONS ===
+  - name: "add_sotl"
+    algorithms: ["cellular_automata", "sotl"]
+    description: "Self-organizing traffic lights only"
+
+  - name: "add_aco"
+    algorithms: ["cellular_automata", "aco"]
+    description: "ACO routing only (fixed signals)"
+
+  - name: "add_pso"
+    algorithms: ["cellular_automata", "pso"]
+    description: "PSO timing optimization only"
+
+  - name: "add_som"
+    algorithms: ["cellular_automata", "som"]
+    description: "Pattern recognition only"
+
+  # === TWO-WAY COMBINATIONS ===
+  - name: "sotl_aco"
+    algorithms: ["cellular_automata", "sotl", "aco"]
+    description: "Signal control + routing"
+
+  - name: "sotl_pso"
+    algorithms: ["cellular_automata", "sotl", "pso"]
+    description: "Signal control + PSO optimization"
+
+  - name: "sotl_som"
+    algorithms: ["cellular_automata", "sotl", "som"]
+    description: "Signal control + pattern recognition"
+
+  # === FULL STACK ===
+  - name: "full_stack"
+    algorithms: ["cellular_automata", "sotl", "aco", "pso", "som"]
+    description: "All algorithms enabled"
+
+  # === SUBTRACTIVE (from full stack) ===
+  - name: "full_minus_sotl"
+    algorithms: ["cellular_automata", "aco", "pso", "som"]
+    description: "Full stack without signal control"
+
+  - name: "full_minus_aco"
+    algorithms: ["cellular_automata", "sotl", "pso", "som"]
+    description: "Full stack without routing"
+
+  - name: "full_minus_pso"
+    algorithms: ["cellular_automata", "sotl", "aco", "som"]
+    description: "Full stack without PSO"
+
+  - name: "full_minus_som"
+    algorithms: ["cellular_automata", "sotl", "aco", "pso"]
+    description: "Full stack without pattern recognition"
+
+  # === HIGH-TRAFFIC SCENARIOS ===
+  # These test algorithm effectiveness under congested conditions
+  - name: "add_aco_rush"
+    algorithms: ["cellular_automata", "aco"]
+    scenario: "rush_hour"
+    description: "ACO routing under high traffic"
+
+  - name: "add_som_rush"
+    algorithms: ["cellular_automata", "som"]
+    scenario: "rush_hour"
+    description: "Pattern recognition under high traffic"
+
+  - name: "sotl_som_rush"
+    algorithms: ["cellular_automata", "sotl", "som"]
+    scenario: "rush_hour"
+    description: "SOTL + SOM integration under high traffic"
+
+  - name: "full_stack_rush"
+    algorithms: ["cellular_automata", "sotl", "aco", "pso", "som"]
+    scenario: "rush_hour"
+    description: "Full stack under high traffic"
+
+settings:
+  duration_ticks: 5400  # 3 minutes simulation time
+  n_runs: 20            # 20 runs for statistical power
+  seeds: "sequential"   # Seeds 0-19
+
+metrics:
+  - average_delay
+  - throughput
+  - average_queue_length
+  - average_speed
+  - total_vehicles

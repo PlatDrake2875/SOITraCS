@@ -1,0 +1,2 @@
+combination,experiment,average_delay_interaction,average_delay_type,throughput_interaction,throughput_type,average_queue_length_interaction,average_queue_length_type,average_speed_interaction,average_speed_type,vs_best_single,vs_best_single_p_value,vs_best_single_improvement
+SOTL+ACO,sotl_aco,0.0,interference,0.0,interference,0.0,interference,0.0,interference,SOTL,1.0,0.0

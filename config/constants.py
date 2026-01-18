@@ -4,10 +4,10 @@
 PERMANENT_INCIDENT_DURATION = -1  # Sentinel for never-expiring incidents
 
 # Vehicle rerouting
-REROUTE_POSITION_THRESHOLD = 3  # Max cells from road start to allow reroute
+REROUTE_POSITION_THRESHOLD = 8  # Max cells from road start to allow reroute (increased for 15-cell roads)
 
 # ACO algorithm parameters
-ACO_DEPOSIT_MULTIPLIER = 0.01  # Pheromone deposit scaling factor
+ACO_DEPOSIT_MULTIPLIER = 0.1   # Pheromone deposit scaling factor (10x increase to balance evaporation)
 ACO_CONGESTION_PENALTY = 0.5   # Pheromone multiplier on congested roads
 ACO_INCIDENT_PENALTY = 0.3     # Pheromone multiplier on incident roads
 

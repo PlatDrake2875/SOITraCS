@@ -1,0 +1,4 @@
+combination,experiment,average_delay_interaction,average_delay_type,throughput_interaction,throughput_type,average_queue_length_interaction,average_queue_length_type,average_speed_interaction,average_speed_type,vs_best_single,vs_best_single_p_value,vs_best_single_improvement
+SOTL+ACO,sotl_aco,0.0,interference,0.0,interference,0.0,interference,0.0,interference,SOTL,1.0,0.0
+SOTL+PSO,sotl_pso,0.6521896272887346,interference,0.0,interference,0.01219714506172842,interference,-0.0447781928592661,interference,SOTL,0.8177399029724195,0.43347884750892196
+SOTL+SOM,sotl_som,0.8652805370686139,interference,0.0,interference,0.011261574074074104,interference,-0.05832130931784607,interference,SOTL,0.04966575080454803,3.3501401611706485

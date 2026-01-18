@@ -90,6 +90,7 @@ class ACOAlgorithm(BaseAlgorithm):
         self._event_handlers = {
             EventType.CONGESTION_DETECTED: self._on_congestion,
             EventType.INCIDENT_INJECTED: self._on_incident,
+            EventType.PATTERN_RECOGNIZED: self._on_pattern_recognized,
         }
 
         for event_type, handler in self._event_handlers.items():
@@ -191,6 +192,24 @@ class ACOAlgorithm(BaseAlgorithm):
             # More aggressive reduction than congestion
             self._pheromone[road_id] *= ACO_INCIDENT_PENALTY
             self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
+
+    def _on_pattern_recognized(self, event: Event) -> None:
+        """Adjust pheromone based on SOM pattern detection."""
+        if not self.enabled:
+            return
+
+        pattern = event.data.get("pattern")
+
+        if pattern == "incident":
+            # Aggressive pheromone reduction to trigger rerouting
+            for road_id in self._pheromone:
+                self._pheromone[road_id] *= 0.7
+                self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
+        elif pattern == "rush_hour":
+            # Moderate reduction to encourage route diversity
+            for road_id in self._pheromone:
+                self._pheromone[road_id] *= 0.85
+                self._pheromone[road_id] = max(self._min_pheromone, self._pheromone[road_id])
 
     def _update_visualization(self, state: SimulationState) -> None:
         """Update visualization data for ACO overlay."""

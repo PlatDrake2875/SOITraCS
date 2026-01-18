@@ -96,11 +96,17 @@ class Settings:
                 data = yaml.safe_load(f) or {}
 
             # Update algorithm settings from YAML
-            if "algorithms" in data:
-                for algo_name, algo_config in data["algorithms"].items():
-                    if hasattr(settings.algorithms, algo_name):
-                        current = getattr(settings.algorithms, algo_name)
-                        current.update(algo_config)
+            # Check for nested structure (algorithms: {...}) or flat structure
+            algo_data = data.get("algorithms", {})
+            # Also check for algorithm names directly at top level
+            for algo_name in ["cellular_automata", "sotl", "aco", "pso", "som", "marl"]:
+                if algo_name in data and algo_name not in algo_data:
+                    algo_data[algo_name] = data[algo_name]
+
+            for algo_name, algo_config in algo_data.items():
+                if hasattr(settings.algorithms, algo_name):
+                    current = getattr(settings.algorithms, algo_name)
+                    current.update(algo_config)
 
             # Update display settings
             if "display" in data:

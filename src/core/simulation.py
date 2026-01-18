@@ -1,10 +1,13 @@
 """Main simulation loop controller."""
 
 import logging
+import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Set
 from pathlib import Path
 import time
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,7 @@ class Simulation:
     state: SimulationState = field(default_factory=SimulationState)
     clock: SimulationClock = field(default_factory=SimulationClock)
     event_bus: EventBus = field(default_factory=get_event_bus)
+    headless: bool = field(default=False)
 
     # Flags
     running: bool = field(default=False, init=False)
@@ -41,12 +45,39 @@ class Simulation:
     _scenario_manager: Optional[ScenarioManager] = field(default=None, init=False)
     _spawn_multiplier: float = field(default=1.0, init=False)
 
+    # Random seed for reproducibility
+    _seed: Optional[int] = field(default=None, init=False)
+
     def __post_init__(self) -> None:
         """Set up event subscriptions."""
         self.event_bus.subscribe(EventType.SIMULATION_PAUSE, self._on_pause)
         self.event_bus.subscribe(EventType.SIMULATION_RESUME, self._on_resume)
         self.event_bus.subscribe(EventType.SIMULATION_RESET, self._on_reset)
         self.event_bus.subscribe(EventType.SPEED_CHANGED, self._on_speed_changed)
+
+    def set_seed(self, seed: int) -> None:
+        """
+        Set random seed for reproducibility.
+
+        Seeds Python's random module, NumPy, and algorithm-specific RNGs.
+
+        Args:
+            seed: Random seed value
+        """
+        self._seed = seed
+        random.seed(seed)
+        np.random.seed(seed)
+
+        # Also seed any algorithm-specific RNGs
+        for algo in self.state.algorithms.values():
+            if hasattr(algo, "set_seed"):
+                algo.set_seed(seed)
+
+        logger.debug(f"Simulation random seed set to {seed}")
+
+    def get_seed(self) -> Optional[int]:
+        """Get the current random seed, if set."""
+        return self._seed
 
     def initialize(self, network_path: Path | str | None = None) -> None:
         """
@@ -155,11 +186,11 @@ class Simulation:
         # 4. Process pending events
         self.event_bus.flush()
 
-        # 5. Update vehicles
-        self._update_vehicles(dt)
-
-        # 6. Reroute vehicles using ACO weights (now has fresh weights)
+        # 5. Reroute vehicles BEFORE movement (check while at road start)
         self._reroute_vehicles(tick)
+
+        # 6. Update vehicles (movement happens here)
+        self._update_vehicles(dt)
 
         # 7. Spawn new vehicles
         self._spawn_vehicles()
@@ -401,3 +432,65 @@ class Simulation:
     def get_active_scenario(self) -> Optional[str]:
         """Get currently active scenario name."""
         return self._scenario_manager.get_active() if self._scenario_manager else None
+
+    def run_ticks(self, n_ticks: int) -> List["MetricsSnapshot"]:
+        """
+        Run the simulation for a specified number of ticks (headless mode).
+
+        This method is designed for batch experiments where GUI is not needed.
+        Collects and returns metrics snapshots for each tick.
+
+        Args:
+            n_ticks: Number of simulation ticks to run
+
+        Returns:
+            List of MetricsSnapshot objects from each tick
+        """
+        from .state import MetricsSnapshot
+
+        if not self._initialized:
+            raise RuntimeError("Simulation must be initialized before running ticks")
+
+        snapshots: List[MetricsSnapshot] = []
+
+        for _ in range(n_ticks):
+            # Increment clock tick manually (since we're not using clock.update())
+            self.clock._tick += 1
+            self._tick()
+
+            # Copy current metrics snapshot
+            m = self.state.current_metrics
+            snapshot = MetricsSnapshot(
+                tick=m.tick,
+                total_vehicles=m.total_vehicles,
+                vehicles_arrived=m.vehicles_arrived,
+                vehicles_spawned=m.vehicles_spawned,
+                average_speed=m.average_speed,
+                average_delay=m.average_delay,
+                average_queue_length=m.average_queue_length,
+                throughput=m.throughput,
+                total_wait_time=m.total_wait_time,
+            )
+            snapshots.append(snapshot)
+
+        return snapshots
+
+    def get_current_metrics_dict(self) -> Dict[str, float]:
+        """
+        Get current simulation metrics as a dictionary.
+
+        Returns:
+            Dictionary mapping metric names to values
+        """
+        m = self.state.current_metrics
+        return {
+            "tick": float(m.tick),
+            "total_vehicles": float(m.total_vehicles),
+            "vehicles_arrived": float(m.vehicles_arrived),
+            "vehicles_spawned": float(m.vehicles_spawned),
+            "average_speed": m.average_speed,
+            "average_delay": m.average_delay,
+            "average_queue_length": m.average_queue_length,
+            "throughput": m.throughput,
+            "total_wait_time": m.total_wait_time,
+        }

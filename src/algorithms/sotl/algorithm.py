@@ -157,6 +157,11 @@ class SOTLAlgorithm(BaseAlgorithm):
         self._network = network
         self._controllers.clear()
 
+        # Store base values for SOM pattern adjustments
+        self._base_min_green = self.config.get("min_green_time", 10)
+        self._base_max_green = self.config.get("max_green_time", 60)
+        self._base_theta = self.config.get("theta", 5)
+
         for int_id, intersection in network.intersections.items():
             # Enable SOTL control for this intersection
             intersection.enable_sotl(True)
@@ -185,6 +190,7 @@ class SOTLAlgorithm(BaseAlgorithm):
         event_bus = get_event_bus()
         self._event_handlers = {
             EventType.SIGNAL_TIMING_SUGGESTED: self._on_timing_suggested,
+            EventType.PATTERN_RECOGNIZED: self._on_pattern_recognized,
         }
         for event_type, handler in self._event_handlers.items():
             event_bus.subscribe(event_type, handler)
@@ -235,6 +241,38 @@ class SOTLAlgorithm(BaseAlgorithm):
 
         self._timing_suggestions_applied += 1
         self._last_suggestion_tick[int_id] = self._current_tick
+
+    def _on_pattern_recognized(self, event: Event) -> None:
+        """Adjust signal parameters based on SOM pattern."""
+        if not self.enabled:
+            return
+
+        pattern = event.data.get("pattern")
+
+        # Pattern-specific timing multipliers
+        if pattern == "rush_hour":
+            # Longer greens, lower threshold for heavy traffic
+            min_mult, max_mult, theta_mult = 1.2, 1.3, 0.8
+        elif pattern == "incident":
+            # Longer minimum green, higher threshold to reduce switching
+            min_mult, max_mult, theta_mult = 1.3, 1.0, 1.2
+        elif pattern == "free_flow":
+            # Shorter cycles for light traffic
+            min_mult, max_mult, theta_mult = 0.9, 0.9, 1.0
+        else:  # moderate
+            # No change
+            min_mult, max_mult, theta_mult = 1.0, 1.0, 1.0
+
+        # Apply with smoothing to all controllers (30% new, 70% old)
+        smoothing = 0.3
+        for controller in self._controllers.values():
+            target_min = self._base_min_green * min_mult
+            target_max = self._base_max_green * max_mult
+            target_theta = self._base_theta * theta_mult
+
+            controller.min_green = round((1 - smoothing) * controller.min_green + smoothing * target_min)
+            controller.max_green = round((1 - smoothing) * controller.max_green + smoothing * target_max)
+            controller.theta = round((1 - smoothing) * controller.theta + smoothing * target_theta)
 
     def update(self, state: SimulationState, dt: float) -> Dict[str, Any]:
         """Update all SOTL controllers."""

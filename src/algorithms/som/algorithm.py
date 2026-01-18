@@ -1,7 +1,28 @@
-"""Self-Organizing Map (SOM) algorithm for traffic pattern recognition."""
+"""
+Self-Organizing Map (SOM) for traffic pattern recognition.
 
+Implements Kohonen's Self-Organizing Map algorithm for unsupervised
+clustering of traffic states into interpretable patterns.
+
+Features:
+- Online learning during simulation
+- Quantization error tracking for map quality assessment
+- Feature importance analysis via weight variance
+- Calibration method for data-driven pattern labeling
+
+References:
+    [1] Kohonen, T. (1990). The self-organizing map.
+        Proceedings of the IEEE, 78(9), 1464-1480.
+    [2] Kohonen, T. (2001). Self-Organizing Maps (3rd ed.). Springer.
+    [3] Ultsch, A., & Siemon, H. P. (1990). Kohonen's self organizing
+        feature maps for exploratory data analysis. INNC.
+"""
+
+from collections import Counter
+from dataclasses import dataclass, field
 from typing import Dict, Any, Tuple, List, Optional
 import numpy as np
+import random
 from config.colors import Colors
 from ..base import BaseAlgorithm, AlgorithmVisualization
 
@@ -10,17 +31,50 @@ from src.core.state import SimulationState
 from src.core.event_bus import Event, EventType, get_event_bus
 
 
+@dataclass
+class SOMMetrics:
+    """Metrics for tracking SOM quality and behavior."""
+
+    quantization_errors: List[float] = field(default_factory=list)
+    classification_history: List[str] = field(default_factory=list)
+    bmu_history: List[Tuple[int, int]] = field(default_factory=list)
+
+    def record_step(
+        self, qe: float, pattern: str, bmu: Tuple[int, int]
+    ) -> None:
+        """Record metrics for a single step."""
+        self.quantization_errors.append(qe)
+        self.classification_history.append(pattern)
+        self.bmu_history.append(bmu)
+
+        # Trim to prevent memory growth
+        max_history = 1000
+        if len(self.quantization_errors) > max_history:
+            self.quantization_errors = self.quantization_errors[-max_history:]
+            self.classification_history = self.classification_history[-max_history:]
+            self.bmu_history = self.bmu_history[-max_history:]
+
+    def get_mean_qe(self, window: int = 100) -> float:
+        """Get mean quantization error over recent window."""
+        if not self.quantization_errors:
+            return 0.0
+        recent = self.quantization_errors[-window:]
+        return float(np.mean(recent))
+
+
 class SOMAlgorithm(BaseAlgorithm):
     """
     Self-Organizing Map for traffic pattern recognition.
 
     Classifies current traffic state into patterns:
-    - Free flow
-    - Moderate congestion
-    - Rush hour
-    - Incident
+    - Free flow: Low density, high speeds
+    - Moderate congestion: Medium density
+    - Rush hour: High overall traffic volume
+    - Incident: Localized congestion patterns
 
-    Can use pre-trained weights or train online.
+    The SOM can operate in two modes:
+    1. Pre-trained: Load weights from file for consistent classification
+    2. Online learning: Adapt to traffic patterns during simulation
     """
 
     @property
@@ -48,14 +102,19 @@ class SOMAlgorithm(BaseAlgorithm):
         self.grid_width = grid_size[0]
         self.grid_height = grid_size[1]
         self.learning_rate = config.get("learning_rate", 0.5)
+        self.learning_rate_decay = config.get("learning_rate_decay", 0.9995)
         self.sigma = config.get("sigma", 3.0)
+        self.sigma_decay = config.get("sigma_decay", 0.9995)
         self.pretrained_path = config.get("pretrained_path")
+        self.online_learning = config.get("online_learning", False)
 
         # SOM weights (will be initialized in initialize())
         self._weights: Optional[np.ndarray] = None
         self._feature_dim = 0
+        self._feature_names: List[str] = []
 
-        # Pattern labels
+        # Pattern labels (calibrated or default quadrant-based)
+        self._neuron_labels: Dict[Tuple[int, int], str] = {}
         self._pattern_labels = {
             0: "free_flow",
             1: "moderate",
@@ -65,35 +124,75 @@ class SOMAlgorithm(BaseAlgorithm):
 
         # Current classification
         self._current_pattern = "free_flow"
-        self._current_bmu = (0, 0)  # Best Matching Unit
+        self._current_bmu = (0, 0)
+        self._current_qe = 0.0
 
-        # Metrics
-        self._classification_history: List[str] = []
+        # Metrics tracking
+        self._metrics = SOMMetrics()
+
+        # RNG for reproducibility
+        self._rng = np.random.default_rng()
+
+    def set_seed(self, seed: int) -> None:
+        """Set random seed for reproducibility."""
+        self._rng = np.random.default_rng(seed)
+        random.seed(seed)
 
     def initialize(self, network: RoadNetwork, state: SimulationState) -> None:
         """Initialize SOM weights."""
         self._network = network
 
         # Feature dimension: one value per road (density) + global metrics
-        self._feature_dim = len(network.roads) + 3  # +3 for avg speed, total vehicles, avg delay
+        n_roads = len(network.roads)
+        self._feature_dim = n_roads + 3  # +3 for avg speed, total vehicles, avg delay
 
-        # Initialize weights randomly
-        self._weights = np.random.rand(
-            self.grid_width, self.grid_height, self._feature_dim
+        # Build feature names for importance analysis
+        self._feature_names = [f"road_{i}_density" for i in range(n_roads)]
+        self._feature_names.extend(["avg_speed", "total_vehicles", "avg_delay"])
+
+        # Initialize weights randomly in [0, 1]
+        self._weights = self._rng.random(
+            (self.grid_width, self.grid_height, self._feature_dim)
         )
 
         # Try to load pretrained weights
         if self.pretrained_path:
-            import os
-            if os.path.exists(self.pretrained_path):
-                try:
-                    data = np.load(self.pretrained_path, allow_pickle=False)
-                    self._weights = data['weights']
-                except Exception as e:
-                    import logging
-                    logging.warning(f"Failed to load SOM weights: {e}")
+            self._load_pretrained()
 
         self._initialized = True
+
+    def _load_pretrained(self) -> bool:
+        """Try to load pretrained weights from file."""
+        import os
+
+        if not self.pretrained_path or not os.path.exists(self.pretrained_path):
+            return False
+
+        try:
+            data = np.load(self.pretrained_path, allow_pickle=True)
+
+            if "weights" in data:
+                loaded_weights = data["weights"]
+                if loaded_weights.shape == self._weights.shape:
+                    self._weights = loaded_weights
+                else:
+                    import logging
+                    logging.warning(
+                        f"SOM weight shape mismatch: expected {self._weights.shape}, "
+                        f"got {loaded_weights.shape}"
+                    )
+                    return False
+
+            # Load neuron labels if available
+            if "neuron_labels" in data:
+                self._neuron_labels = dict(data["neuron_labels"].item())
+
+            return True
+
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to load SOM weights: {e}")
+            return False
 
     def update(self, state: SimulationState, dt: float) -> Dict[str, Any]:
         """Update SOM classification."""
@@ -104,27 +203,38 @@ class SOMAlgorithm(BaseAlgorithm):
         features = self._extract_features(state)
 
         # Find Best Matching Unit
-        self._current_bmu = self._find_bmu(features)
+        self._current_bmu, self._current_qe = self._find_bmu(features)
 
-        # Classify pattern based on BMU position
+        # Classify pattern based on BMU
         self._current_pattern = self._classify_bmu(self._current_bmu)
 
-        # Store in history
-        self._classification_history.append(self._current_pattern)
-        if len(self._classification_history) > 300:
-            self._classification_history = self._classification_history[-300:]
+        # Record metrics
+        self._metrics.record_step(
+            qe=self._current_qe,
+            pattern=self._current_pattern,
+            bmu=self._current_bmu,
+        )
 
-        # Publish pattern event if changed
-        if len(self._classification_history) >= 2:
-            if self._classification_history[-1] != self._classification_history[-2]:
-                get_event_bus().publish(Event(
-                    type=EventType.PATTERN_RECOGNIZED,
-                    data={
-                        "pattern": self._current_pattern,
-                        "bmu": self._current_bmu,
-                    },
-                    source=self.name,
-                ))
+        # Online learning (optional)
+        if self.online_learning:
+            self._update_weights(features, self._current_bmu)
+
+        # Publish pattern event periodically (every 10 ticks) OR on change
+        # This ensures ACO and SOTL receive regular pattern updates
+        tick = state.current_metrics.tick
+        history = self._metrics.classification_history
+        pattern_changed = len(history) >= 2 and history[-1] != history[-2]
+
+        if pattern_changed or (tick % 10 == 0):
+            get_event_bus().publish(Event(
+                type=EventType.PATTERN_RECOGNIZED,
+                data={
+                    "pattern": self._current_pattern,
+                    "bmu": self._current_bmu,
+                    "qe": self._current_qe,
+                },
+                source=self.name,
+            ))
 
         # Update visualization
         self._update_visualization(state)
@@ -132,6 +242,7 @@ class SOMAlgorithm(BaseAlgorithm):
         return {
             "pattern": self._current_pattern,
             "bmu": self._current_bmu,
+            "quantization_error": self._current_qe,
         }
 
     def _extract_features(self, state: SimulationState) -> np.ndarray:
@@ -143,33 +254,71 @@ class SOMAlgorithm(BaseAlgorithm):
             for road in self._network.roads.values():
                 features.append(road.get_density())
 
-        # Global metrics
-        features.append(state.current_metrics.average_speed / 5.0)  # Normalize
+        # Global metrics (normalized)
+        features.append(state.current_metrics.average_speed / 5.0)
         features.append(min(1.0, state.current_metrics.total_vehicles / 200.0))
         features.append(min(1.0, state.current_metrics.average_delay / 30.0))
 
-        return np.array(features)
+        return np.array(features, dtype=np.float32)
 
-    def _find_bmu(self, features: np.ndarray) -> Tuple[int, int]:
-        """Find Best Matching Unit for feature vector."""
+    def _find_bmu(self, features: np.ndarray) -> Tuple[Tuple[int, int], float]:
+        """
+        Find Best Matching Unit for feature vector.
+
+        Returns:
+            Tuple of (bmu_coordinates, quantization_error)
+        """
         if self._weights is None:
-            return (0, 0)
+            return (0, 0), 0.0
 
-        min_dist = float('inf')
-        bmu = (0, 0)
+        # Compute distances to all neurons
+        diff = self._weights - features
+        distances = np.linalg.norm(diff, axis=2)
 
+        # Find minimum
+        flat_idx = np.argmin(distances)
+        bmu = np.unravel_index(flat_idx, distances.shape)
+        qe = float(distances[bmu])
+
+        return (int(bmu[0]), int(bmu[1])), qe
+
+    def _update_weights(
+        self, features: np.ndarray, bmu: Tuple[int, int]
+    ) -> None:
+        """Update SOM weights (online learning)."""
+        if self._weights is None:
+            return
+
+        # Compute neighborhood function
         for i in range(self.grid_width):
             for j in range(self.grid_height):
-                dist = np.linalg.norm(features - self._weights[i, j])
-                if dist < min_dist:
-                    min_dist = dist
-                    bmu = (i, j)
+                # Distance from BMU on the grid
+                grid_dist = (i - bmu[0]) ** 2 + (j - bmu[1]) ** 2
 
-        return bmu
+                # Gaussian neighborhood
+                neighborhood = np.exp(-grid_dist / (2 * self.sigma ** 2))
+
+                # Weight update
+                self._weights[i, j] += (
+                    self.learning_rate * neighborhood *
+                    (features - self._weights[i, j])
+                )
+
+        # Decay learning rate and sigma
+        self.learning_rate *= self.learning_rate_decay
+        self.sigma *= self.sigma_decay
+
+        # Clamp to minimum values
+        self.learning_rate = max(0.01, self.learning_rate)
+        self.sigma = max(0.5, self.sigma)
 
     def _classify_bmu(self, bmu: Tuple[int, int]) -> str:
         """Classify pattern based on BMU position."""
-        # Simple quadrant-based classification
+        # Use calibrated labels if available
+        if bmu in self._neuron_labels:
+            return self._neuron_labels[bmu]
+
+        # Fall back to quadrant-based classification
         x, y = bmu
         mid_x = self.grid_width // 2
         mid_y = self.grid_height // 2
@@ -183,7 +332,128 @@ class SOMAlgorithm(BaseAlgorithm):
         else:
             return "incident"
 
-    def _update_visualization(self, state: SimulationState) -> None:
+    def calibrate_classification(
+        self, labeled_data: List[Tuple[np.ndarray, str]]
+    ) -> None:
+        """
+        Calibrate pattern labels using labeled examples.
+
+        This method assigns pattern labels to neurons based on labeled
+        training data. Each labeled example is mapped to its BMU, and
+        the majority label for each neuron becomes its label.
+
+        Args:
+            labeled_data: List of (feature_vector, label) tuples
+        """
+        if not labeled_data or self._weights is None:
+            return
+
+        # Map each labeled example to its BMU
+        neuron_votes: Dict[Tuple[int, int], List[str]] = {}
+
+        for features, label in labeled_data:
+            bmu, _ = self._find_bmu(features)
+            if bmu not in neuron_votes:
+                neuron_votes[bmu] = []
+            neuron_votes[bmu].append(label)
+
+        # Majority vote for labeled neurons
+        self._neuron_labels = {}
+        for bmu, labels in neuron_votes.items():
+            most_common = Counter(labels).most_common(1)[0][0]
+            self._neuron_labels[bmu] = most_common
+
+        # Propagate labels to unlabeled neurons via nearest neighbor
+        self._propagate_labels()
+
+    def _propagate_labels(self) -> None:
+        """Propagate labels to unlabeled neurons via nearest labeled neighbor."""
+        if not self._neuron_labels:
+            return
+
+        labeled_neurons = list(self._neuron_labels.keys())
+
+        for i in range(self.grid_width):
+            for j in range(self.grid_height):
+                if (i, j) in self._neuron_labels:
+                    continue
+
+                # Find nearest labeled neuron
+                min_dist = float('inf')
+                nearest_label = "free_flow"
+
+                for labeled_bmu in labeled_neurons:
+                    dist = (i - labeled_bmu[0]) ** 2 + (j - labeled_bmu[1]) ** 2
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_label = self._neuron_labels[labeled_bmu]
+
+                self._neuron_labels[(i, j)] = nearest_label
+
+    def get_feature_importance(self) -> Dict[str, float]:
+        """
+        Compute feature importance as weight variance across map.
+
+        Higher variance = feature differentiates patterns more.
+
+        Returns:
+            Dictionary mapping feature names to importance scores
+        """
+        if self._weights is None:
+            return {}
+
+        importance = {}
+
+        for i, name in enumerate(self._feature_names):
+            if i < self._weights.shape[2]:
+                # Variance across all neurons
+                variance = float(np.var(self._weights[:, :, i]))
+                importance[name] = variance
+
+        # Normalize to [0, 1]
+        max_importance = max(importance.values()) if importance else 1.0
+        if max_importance > 0:
+            importance = {k: v / max_importance for k, v in importance.items()}
+
+        return importance
+
+    def get_u_matrix(self) -> np.ndarray:
+        """
+        Compute U-matrix for visualization.
+
+        The U-matrix shows distances between neighboring neurons,
+        revealing cluster boundaries in the map.
+
+        Returns:
+            2D array of average distances to neighbors
+        """
+        if self._weights is None:
+            return np.zeros((self.grid_width, self.grid_height))
+
+        u_matrix = np.zeros((self.grid_width, self.grid_height))
+
+        for i in range(self.grid_width):
+            for j in range(self.grid_height):
+                neighbors = []
+
+                # Check all 8 neighbors
+                for di in [-1, 0, 1]:
+                    for dj in [-1, 0, 1]:
+                        if di == 0 and dj == 0:
+                            continue
+                        ni, nj = i + di, j + dj
+                        if 0 <= ni < self.grid_width and 0 <= nj < self.grid_height:
+                            dist = np.linalg.norm(
+                                self._weights[i, j] - self._weights[ni, nj]
+                            )
+                            neighbors.append(dist)
+
+                if neighbors:
+                    u_matrix[i, j] = np.mean(neighbors)
+
+        return u_matrix
+
+    def _update_visualization(self, _state: SimulationState) -> None:
         """Update visualization data for SOM overlay."""
         self._visualization = AlgorithmVisualization()
 
@@ -194,7 +464,7 @@ class SOMAlgorithm(BaseAlgorithm):
         bounds = self._network.get_bounds()
         self._visualization.heatmap_bounds = bounds
 
-        # Simplified: color roads based on current pattern
+        # Color roads based on current pattern
         pattern_colors = {
             "free_flow": Colors.CONGESTION_LOW,
             "moderate": Colors.CONGESTION_MEDIUM,
@@ -210,8 +480,9 @@ class SOMAlgorithm(BaseAlgorithm):
         # Add pattern label annotation
         center_x = (bounds[0] + bounds[2]) / 2
         center_y = bounds[1] + 30
+        qe_str = f" (QE: {self._current_qe:.2f})"
         self._visualization.annotations.append(
-            (center_x, center_y, f"Pattern: {self._current_pattern}")
+            (center_x, center_y, f"Pattern: {self._current_pattern}{qe_str}")
         )
 
     def get_visualization_data(self) -> AlgorithmVisualization:
@@ -220,21 +491,48 @@ class SOMAlgorithm(BaseAlgorithm):
 
     def get_metrics(self) -> Dict[str, float]:
         """Get SOM-specific metrics."""
-        # Count pattern occurrences
-        pattern_counts = {}
-        for pattern in self._pattern_labels.values():
-            count = self._classification_history.count(pattern)
-            pattern_counts[f"pattern_{pattern}"] = float(count)
-
-        return {
+        metrics = {
             "current_bmu_x": float(self._current_bmu[0]),
             "current_bmu_y": float(self._current_bmu[1]),
-            **pattern_counts,
+            "quantization_error": self._current_qe,
+            "mean_qe_last_100": self._metrics.get_mean_qe(100),
+            "learning_rate": self.learning_rate,
+            "sigma": self.sigma,
         }
+
+        # Count pattern occurrences in history
+        for pattern in self._pattern_labels.values():
+            count = self._metrics.classification_history.count(pattern)
+            metrics[f"pattern_{pattern}"] = float(count)
+
+        # Pattern ID for current pattern
+        pattern_id_map = {v: k for k, v in self._pattern_labels.items()}
+        metrics["current_pattern_id"] = float(
+            pattern_id_map.get(self._current_pattern, -1)
+        )
+
+        return metrics
 
     def reset(self) -> None:
         """Reset SOM algorithm."""
         super().reset()
         self._current_pattern = "free_flow"
         self._current_bmu = (0, 0)
-        self._classification_history.clear()
+        self._current_qe = 0.0
+        self._metrics = SOMMetrics()
+
+        # Reset learning parameters
+        self.learning_rate = self.config.get("learning_rate", 0.5)
+        self.sigma = self.config.get("sigma", 3.0)
+
+    def save_weights(self, path: str) -> None:
+        """Save current SOM weights and labels to file."""
+        import os
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+
+        np.savez(
+            path,
+            weights=self._weights,
+            neuron_labels=self._neuron_labels,
+            feature_names=self._feature_names,
+        )

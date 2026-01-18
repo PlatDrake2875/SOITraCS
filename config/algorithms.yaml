@@ -18,9 +18,9 @@ sotl:
 
 aco:
   enabled: false           # Disabled by default for cleaner visuals
-  alpha: 1.0               # Pheromone importance weight
-  beta: 2.0                # Heuristic importance weight
-  rho: 0.1                 # Evaporation rate per tick
+  alpha: 2.0               # Pheromone importance weight (increased to make pheromone matter more)
+  beta: 1.5                # Heuristic importance weight (reduced distance dominance)
+  rho: 0.02                # Evaporation rate per tick (slower: 2% vs 10% allows accumulation)
   Q: 100                   # Pheromone deposit constant
   reroute_frequency: 10    # Ticks between reroute calculations
 
@@ -41,8 +41,14 @@ som:
 
 marl:
   enabled: false           # Disabled by default
-  learning_rate: 0.001     # Q-learning rate
-  gamma: 0.99              # Discount factor for future rewards
-  epsilon: 0.0             # No exploration in inference mode
+  learning_rate: 0.01      # Q-learning rate (higher for faster learning)
+  gamma: 0.95              # Discount factor for future rewards
+  epsilon: 0.1             # Exploration rate (used in training mode)
+  epsilon_min: 0.01        # Minimum exploration rate
+  epsilon_decay: 0.9995    # Epsilon decay per step
   pretrained_path: "data/pretrained_models/marl_q_tables.npz"
   inference_only: true     # Visualization-only mode (no signal control)
+  # State discretization
+  queue_bins: 5            # Number of bins for queue discretization
+  time_bins: 4             # Number of bins for time-in-phase
+  pressure_bins: 3         # Number of bins for neighbor pressure

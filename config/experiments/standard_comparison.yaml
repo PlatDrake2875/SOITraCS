@@ -1,0 +1,36 @@
+# Standard Comparison Experiment Configuration
+# Compares baseline (CA only) against various algorithm combinations
+
+experiments:
+  - name: "baseline"
+    algorithms: ["cellular_automata"]
+    scenario: "normal"
+    description: "Baseline with only Cellular Automata (no adaptive signals)"
+
+  - name: "sotl_only"
+    algorithms: ["cellular_automata", "sotl"]
+    scenario: "normal"
+    description: "Self-Organizing Traffic Lights (adaptive signals)"
+
+  - name: "sotl_aco"
+    algorithms: ["cellular_automata", "sotl", "aco"]
+    scenario: "normal"
+    description: "SOTL + ACO routing optimization"
+
+  - name: "full_stack"
+    algorithms: ["cellular_automata", "sotl", "aco", "som"]
+    scenario: "normal"
+    description: "Full algorithm stack with pattern recognition"
+
+settings:
+  duration_ticks: 5400  # ~3 minutes at 30 ticks/sec
+  n_runs: 10
+  seeds: "sequential"  # Seeds: 0, 1, 2, ...
+  network_path: null   # Use default grid network
+
+metrics:
+  - average_delay
+  - throughput
+  - average_queue_length
+  - average_speed
+  - total_vehicles
