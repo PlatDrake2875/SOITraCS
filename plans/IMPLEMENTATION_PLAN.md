@@ -1,4 +1,4 @@
-# SOITCS Implementation Plan
+# SOITraCS Implementation Plan
 
 ## Overview
 Build a Pygame-based visualization demonstrating self-organizing traffic control algorithms working together for a Master's thesis project.
@@ -189,7 +189,7 @@ Start with CA + SOTL working end-to-end, then add algorithms incrementally.
 
 ```
 +------------------+------------------+
-|                  |     SOITCS       |
+|                  |     SOITraCS       |
 |                  +------------------+
 |                  |  METRICS         |
 |   SIMULATION     |  Vehicles    45  |

@@ -1,4 +1,4 @@
-# Critical Analysis: SOITCS Project Review
+# Critical Analysis: SOITraCS Project Review
 
 ## Context
 **Project Type:** Master's thesis - educational visualization demonstrating algorithm integration

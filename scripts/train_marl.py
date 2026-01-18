@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MARL Training Script for SOITCS.
+MARL Training Script for SOITraCS.
 
 Trains Q-tables for Multi-Agent Reinforcement Learning traffic signal control.
 

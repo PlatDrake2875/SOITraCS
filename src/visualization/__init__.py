@@ -1,4 +1,4 @@
-"""Visualization components for SOITCS."""
+"""Visualization components for SOITraCS."""
 
 from .renderer import Renderer
 

@@ -133,7 +133,7 @@ class DashboardPanel:
 
     def _render_title(self, surface: pygame.Surface, y: int) -> int:
         """Render dashboard title."""
-        title = self.font_title.render("SOITCS", True, Colors.TEXT_ACCENT)
+        title = self.font_title.render("SOITraCS", True, Colors.TEXT_ACCENT)
         x = self.rect.left + self.padding
         surface.blit(title, (x, y))
         return y + title.get_height() + 4

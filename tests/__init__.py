@@ -1,1 +1,1 @@
-"""Test suite for SOITCS."""
+"""Test suite for SOITraCS."""

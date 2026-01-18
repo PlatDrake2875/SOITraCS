@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run ablation study experiments for SOITCS.
+Run ablation study experiments for SOITraCS.
 
 This script runs all 13 experiment configurations from the ablation study
 with multiple seeds to measure the contribution of each algorithm component.
@@ -30,7 +30,7 @@ sys.path.insert(0, str(project_root))
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run SOITCS ablation study experiments"
+        description="Run SOITraCS ablation study experiments"
     )
     parser.add_argument(
         "--config",

@@ -1,6 +1,6 @@
 # Ablation Study Configuration
 # Tests individual and combined algorithm contributions to measure the
-# importance of each component in the SOITCS system.
+# importance of each component in the SOITraCS system.
 #
 # Study Design:
 # 1. Additive Ablation: Build up from CA-only baseline

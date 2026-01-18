@@ -1,4 +1,4 @@
-"""Color scheme for SOITCS visualization."""
+"""Color scheme for SOITraCS visualization."""
 
 from dataclasses import dataclass
 from typing import Tuple

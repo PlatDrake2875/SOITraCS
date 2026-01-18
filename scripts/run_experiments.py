@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CLI for running SOITCS experiments.
+CLI for running SOITraCS experiments.
 
 Usage:
     python scripts/run_experiments.py --config config/experiments/standard_comparison.yaml --output results/
@@ -23,7 +23,7 @@ sys.path.insert(0, str(project_root))
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run SOITCS benchmarking experiments"
+        description="Run SOITraCS benchmarking experiments"
     )
     parser.add_argument(
         "--config",

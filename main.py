@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SOITCS - Self-Organizing Intelligent Traffic Control Systems
+SOITraCS - Self-Organizing Intelligent Traffic Control Systems
 
 A Pygame-based visualization demonstrating self-organizing traffic control
 algorithms working together for a Master's thesis project.
@@ -307,7 +307,7 @@ class Application:
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="SOITCS - Self-Organizing Intelligent Traffic Control Systems"
+        description="SOITraCS - Self-Organizing Intelligent Traffic Control Systems"
     )
 
     parser.add_argument(

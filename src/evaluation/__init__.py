@@ -1,5 +1,5 @@
 """
-Evaluation package for SOITCS experiments.
+Evaluation package for SOITraCS experiments.
 
 Provides tools for running reproducible experiments, statistical analysis,
 and comparing algorithm performance.

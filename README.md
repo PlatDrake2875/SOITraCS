@@ -1,57 +1,55 @@
-# SOITCS - Self-Organizing Intelligent Traffic Control System
+# SOITraCS - Self-Organizing Intelligent Traffic Control System
 
-A Pygame-based visualization demonstrating self-organizing traffic control algorithms working together. Built for a Master's thesis project exploring emergent behavior in traffic systems.
+A Pygame-based simulation framework for studying self-organizing traffic control algorithms. The system integrates six algorithms within an event-driven architecture, enabling both interactive visualization and automated experiments.
 
 ## Features
 
 ### Traffic Simulation
-- **Cellular Automata (CA)** - NaSch model for realistic traffic flow with random slowdowns
-- **Self-Organizing Traffic Lights (SOTL)** - Adaptive signal control based on queue length and platoon detection
+- **Cellular Automata (CA)** - Nagel-Schreckenberg model for microscopic traffic flow
+- **Self-Organizing Traffic Lights (SOTL)** - Adaptive signal control based on queue thresholds
 - **Ant Colony Optimization (ACO)** - Pheromone-based dynamic vehicle routing
-- **Particle Swarm Optimization (PSO)** - Signal timing optimization
-- **Self-Organizing Maps (SOM)** - Traffic pattern recognition
-- **Multi-Agent Reinforcement Learning (MARL)** - Learning-based signal control
+- **Particle Swarm Optimization (PSO)** - Signal timing parameter optimization
+- **Self-Organizing Maps (SOM)** - Traffic pattern recognition and classification
+- **Multi-Agent Reinforcement Learning (MARL)** - Q-learning agents for adaptive control
 
 ### Visualization
-- Clean road rendering with dashed lane dividers and rounded ends
-- Compact signal strips on intersection edges (grouped by phase)
-- Speed-based vehicle coloring (red = stopped, white = moving)
-- Subtle algorithm overlays with adjustable opacity
-- Modern dark-themed dashboard with real-time metrics
+- Real-time traffic flow rendering with speed-based vehicle coloring
+- Signal state visualization on intersection edges
+- Algorithm overlays (pheromone trails, SOM clusters, MARL decisions)
+- Dashboard with live metrics and algorithm toggles
 
-### Configuration
-- YAML-based network topology (customizable intersections and roads)
-- YAML-tunable algorithm parameters
-- Scenario presets (rush hour, incidents)
-- Toggle algorithms on/off at runtime
+### Experimentation
+- Automated ablation study framework
+- Configurable experiment protocols
+- Statistical analysis with significance testing
+- Result export (CSV, LaTeX tables, figures)
 
 ## Project Structure
 
 ```
-SOITCS/
+SOITraCS/
 ├── main.py                      # Application entry point
-├── pyproject.toml               # Project dependencies (uv/pip)
+├── pyproject.toml               # Project dependencies
 ├── config/
-│   ├── settings.py              # Global constants
-│   ├── colors.py                # Color palette
+│   ├── settings.py              # Global settings
 │   ├── algorithms.yaml          # Algorithm parameters
-│   └── scenarios/
-│       └── grid_4x4.yaml        # 4x4 grid network definition
+│   ├── scenarios/
+│   │   └── grid_4x4.yaml        # Network topology
+│   └── experiments/
+│       ├── ablation_study.yaml  # Ablation experiment config
+│       └── standard_comparison.yaml
 ├── src/
 │   ├── core/
 │   │   ├── simulation.py        # Main simulation loop
-│   │   ├── event_bus.py         # Pub/sub for algorithm communication
-│   │   ├── state.py             # SimulationState container
-│   │   └── clock.py             # Timing management
+│   │   ├── event_bus.py         # Pub/sub communication
+│   │   └── state.py             # Simulation state container
 │   ├── entities/
 │   │   ├── vehicle.py           # Vehicle entity
 │   │   ├── intersection.py      # Intersection with signals
-│   │   ├── traffic_light.py     # Traffic light phases
 │   │   ├── road.py              # Road segments
 │   │   └── network.py           # Road network graph
 │   ├── algorithms/
 │   │   ├── base.py              # BaseAlgorithm interface
-│   │   ├── registry.py          # Algorithm registration
 │   │   ├── cellular_automata/   # CA traffic flow
 │   │   ├── sotl/                # Self-organizing lights
 │   │   ├── aco/                 # Ant colony routing
@@ -59,21 +57,26 @@ SOITCS/
 │   │   ├── som/                 # Pattern recognition
 │   │   └── marl/                # Reinforcement learning
 │   ├── visualization/
-│   │   ├── renderer.py          # Main render coordinator
-│   │   ├── layers/
-│   │   │   ├── base.py          # BaseLayer interface
-│   │   │   ├── network_layer.py # Roads and intersections
-│   │   │   ├── signal_layer.py  # Traffic signals
-│   │   │   ├── vehicle_layer.py # Vehicles
-│   │   │   └── overlay_layer.py # Algorithm visualizations
-│   │   └── dashboard/
-│   │       └── panel.py         # Metrics and controls
-│   └── utils/
-│       ├── threading_utils.py   # Background computation
-│       └── recorder.py          # Export for thesis figures
-├── plans/
-│   ├── IMPLEMENTATION_PLAN.md   # Development roadmap
-│   └── SOITCS_Critical_Analysis.md
+│   │   ├── renderer.py          # Render coordinator
+│   │   ├── layers/              # Rendering layers
+│   │   └── dashboard/           # Metrics panel
+│   └── evaluation/
+│       ├── experiment.py        # Experiment runner
+│       ├── analysis.py          # Statistical analysis
+│       └── self_organization.py # Emergence metrics
+├── scripts/
+│   ├── run_ablation.py          # Run ablation study
+│   ├── analyze_ablation.py      # Analyze results
+│   ├── run_experiments.py       # General experiments
+│   └── train_marl.py            # Train MARL agents
+├── docs/
+│   ├── final_report.tex         # IEEE-format paper
+│   ├── final_report.pdf
+│   ├── final_presentation.tex   # Beamer slides
+│   ├── final_presentation.pdf
+│   └── references.bib           # Bibliography
+├── results/                     # Experiment outputs
+│   └── ablation_final/          # Ablation study results
 └── tests/
 ```
 
@@ -85,50 +88,57 @@ SOITCS/
 
 ### Using uv (recommended)
 ```bash
-# Clone the repository
-git clone https://github.com/PlatDrake2875/SOITCS.git
-cd SOITCS
+git clone https://github.com/PlatDrake2875/SOITraCS.git
+cd SOITraCS
 
-# Install dependencies and run
+# Install dependencies and run visualization
 uv run python main.py
 ```
 
 ### Using pip
 ```bash
-# Clone the repository
-git clone https://github.com/PlatDrake2875/SOITCS.git
-cd SOITCS
+git clone https://github.com/PlatDrake2875/SOITraCS.git
+cd SOITraCS
 
-# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install dependencies
-pip install pygame numpy pyyaml matplotlib
+pip install pygame numpy pyyaml matplotlib scipy
 
-# Run
 python main.py
 ```
 
 ## Usage
 
-### Running the Simulation
+### Interactive Visualization
 ```bash
 uv run python main.py
 ```
 
-### Controls
+**Controls:**
 | Key | Action |
 |-----|--------|
-| **Space** | Pause/Resume simulation |
-| **1-5** | Set simulation speed (0.5x, 1x, 2x, 5x) |
-| **Click** | Select intersection/vehicle for details |
+| Space | Pause/Resume |
+| 1-5 | Set speed (0.5x to 5x) |
+| Click | Inject incident at intersection |
 
-### Dashboard
-The right panel displays:
-- **Metrics**: Vehicle count, average speed, delay, queue length
-- **Algorithms**: Toggle buttons for each algorithm (CA, SOTL, ACO, PSO, SOM, MARL)
-- **Speed**: Simulation speed controls and pause button
+**Dashboard:** Toggle algorithms on/off, view real-time metrics (delay, throughput, speed).
+
+### Running Experiments
+
+**Ablation Study:**
+```bash
+# Run ablation experiments (340 runs)
+uv run python scripts/run_ablation.py --output results/ablation
+
+# Analyze results
+uv run python scripts/analyze_ablation.py results/ablation
+```
+
+**Train MARL Agents:**
+```bash
+uv run python scripts/train_marl.py --episodes 1000
+```
 
 ## Configuration
 
@@ -136,58 +146,69 @@ The right panel displays:
 ```yaml
 cellular_automata:
   enabled: true
-  max_velocity: 5
-  slow_probability: 0.3
+  max_velocity: 5          # cells/tick
+  slow_probability: 0.3    # NaSch random slowdown
 
 sotl:
-  enabled: false
+  enabled: true
+  theta: 5                 # Queue threshold
   min_green_time: 10
-  theta: 5  # Queue threshold
+  max_green_time: 60
 
 aco:
-  enabled: false
-  alpha: 1.0
-  rho: 0.1  # Evaporation rate
+  enabled: true
+  alpha: 2.0               # Pheromone weight
+  beta: 1.5                # Distance weight
+  rho: 0.02                # Evaporation rate
 ```
 
-### Network Topology (`config/scenarios/grid_4x4.yaml`)
+### Experiment Configuration (`config/experiments/ablation_study.yaml`)
 ```yaml
-intersections:
-  - id: 0
-    position: [100, 100]
-    signal_phases:
-      - duration: 30
-        green_directions: [north, south]
+experiment:
+  duration: 5400           # ticks per run
+  warmup: 400              # excluded from metrics
+  seeds: [0, 1, ..., 19]   # 20 repetitions
 
-roads:
-  - id: 0
-    from: 0
-    to: 1
-    lanes: 1
-    speed_limit: 5
+configurations:
+  - name: baseline
+    algorithms: [ca]
+  - name: ca_sotl
+    algorithms: [ca, sotl]
+  # ... 17 configurations total
 ```
+
+## Results Summary
+
+From ablation study (340 runs):
+
+| Configuration | Delay Reduction | Significance |
+|---------------|-----------------|--------------|
+| + SOTL | -29.4% | p < 0.001 |
+| + ACO | -29.9% | p < 0.001 |
+| Full Stack | -44.5% | p < 0.001 |
+| - SOM (from full) | +11.3% | p < 0.001 |
+
+Key findings:
+- SOTL and ACO provide complementary benefits
+- SOM acts as integration enabler (0% alone, 11.3% contribution via coordination)
+- Combined algorithms achieve synergistic improvement
+
+## Documentation
+
+- **Final Report:** `docs/final_report.pdf` - IEEE conference format paper
+- **Presentation:** `docs/final_presentation.pdf` - Beamer slides
 
 ## Algorithm Overview
 
-| Algorithm | Purpose | Visualization |
-|-----------|---------|---------------|
-| **CA** | Traffic flow dynamics | Vehicle movement |
-| **SOTL** | Adaptive signal control | Signal strips on intersections |
-| **ACO** | Dynamic routing | Green pheromone trails |
-| **PSO** | Signal optimization | Blue particles (when enabled) |
-| **SOM** | Pattern recognition | Purple cluster overlay |
-| **MARL** | Learning agents | Yellow decision indicators |
-
-## Performance
-
-- Target: **30 FPS** minimum
-- Recommended: **100-500 vehicles** for educational visualization
-- Heavy algorithms (PSO, MARL) run in background threads
+| Algorithm | Role | Key Parameters |
+|-----------|------|----------------|
+| CA | Vehicle dynamics | v_max=5, p_slow=0.3 |
+| SOTL | Signal control | θ=5, t∈[10,60] |
+| ACO | Dynamic routing | α=2.0, β=1.5, ρ=0.02 |
+| PSO | Timing optimization | swarm=30, w=0.7 |
+| SOM | Pattern recognition | 10×10 grid |
+| MARL | Adaptive control | γ=0.95, ε=0.1 |
 
 ## License
 
 MIT License - See LICENSE file for details.
-
-## Acknowledgments
-
-Built as part of a Master's thesis on self-organizing traffic control systems.

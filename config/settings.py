@@ -1,4 +1,4 @@
-"""Global settings and constants for SOITCS simulation."""
+"""Global settings and constants for SOITraCS simulation."""
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,7 +15,7 @@ class DisplaySettings:
     simulation_height: int = 900
     dashboard_width: int = 400
     fps_target: int = 30
-    title: str = "SOITCS - Self-Organizing Traffic Control"
+    title: str = "SOITraCS - Self-Organizing Traffic Control"
 
 
 @dataclass

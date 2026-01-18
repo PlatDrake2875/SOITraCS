@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Analyze ablation study results for SOITCS.
+Analyze ablation study results for SOITraCS.
 
 This script analyzes the results from run_ablation.py and generates:
 - Additive contribution analysis (each algorithm vs baseline)
@@ -634,7 +634,7 @@ def print_summary(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze SOITCS ablation study results"
+        description="Analyze SOITraCS ablation study results"
     )
     parser.add_argument(
         "--input",
