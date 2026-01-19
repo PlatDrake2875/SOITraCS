@@ -1,0 +1,214 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global}
+    \entry{nagel1992cellular}{article}{}
+      \name{author}{2}{}{%
+        {{hash=d4e6d31cf3e769bceb30fc6ee7b71036}{%
+           family={Nagel},
+           familyi={N\bibinitperiod},
+           given={Kai},
+           giveni={K\bibinitperiod}}}%
+        {{hash=b1688dcc7bf40f8b23f637f323a9be4c}{%
+           family={Schreckenberg},
+           familyi={S\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+      }
+      \strng{namehash}{f8e2720a31aef72cd7a67851e4533449}
+      \strng{fullhash}{f8e2720a31aef72cd7a67851e4533449}
+      \strng{bibnamehash}{f8e2720a31aef72cd7a67851e4533449}
+      \strng{authorbibnamehash}{f8e2720a31aef72cd7a67851e4533449}
+      \strng{authornamehash}{f8e2720a31aef72cd7a67851e4533449}
+      \strng{authorfullhash}{f8e2720a31aef72cd7a67851e4533449}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal de Physique I}
+      \field{number}{12}
+      \field{title}{A cellular automaton model for freeway traffic}
+      \field{volume}{2}
+      \field{year}{1992}
+      \field{pages}{2221\bibrangedash 2229}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.1051/jp1:1992277
+      \endverb
+    \endentry
+    \entry{cools2013sotl}{incollection}{}
+      \name{author}{3}{}{%
+        {{hash=5013212662d0e2f27629b285fcaa5b78}{%
+           family={Cools},
+           familyi={C\bibinitperiod},
+           given={Seung-Bae},
+           giveni={S\bibinithyphendelim B\bibinitperiod}}}%
+        {{hash=02b1f0bb9c6dfe475deb0c329ce03290}{%
+           family={Gershenson},
+           familyi={G\bibinitperiod},
+           given={Carlos},
+           giveni={C\bibinitperiod}}}%
+        {{hash=f8e78b3a57540e343032e138a63e7611}{%
+           family={D'Hooghe},
+           familyi={D\bibinitperiod},
+           given={Bart},
+           giveni={B\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{617cc9d709fcefada54ef3ac6751b70c}
+      \strng{fullhash}{617cc9d709fcefada54ef3ac6751b70c}
+      \strng{bibnamehash}{173d5424c9a756512d9b02bdf1566dfd}
+      \strng{authorbibnamehash}{173d5424c9a756512d9b02bdf1566dfd}
+      \strng{authornamehash}{617cc9d709fcefada54ef3ac6751b70c}
+      \strng{authorfullhash}{617cc9d709fcefada54ef3ac6751b70c}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Advances in Applied Self-Organizing Systems}
+      \field{title}{Self-Organizing Traffic Lights: A Realistic Simulation}
+      \field{year}{2013}
+      \field{pages}{45\bibrangedash 55}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1007/978-1-4471-5113-5_3
+      \endverb
+    \endentry
+    \entry{dorigo1997aco}{article}{}
+      \name{author}{2}{}{%
+        {{hash=26c8dbd8b76182fc666371044ae8dfa4}{%
+           family={Dorigo},
+           familyi={D\bibinitperiod},
+           given={Marco},
+           giveni={M\bibinitperiod}}}%
+        {{hash=e8a681f350ef11120f7aa2c824a941bd}{%
+           family={Gambardella},
+           familyi={G\bibinitperiod},
+           given={Luca\bibnamedelima Maria},
+           giveni={L\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+      }
+      \strng{namehash}{13466f3d80cebe76f80a290fc62b6ccf}
+      \strng{fullhash}{13466f3d80cebe76f80a290fc62b6ccf}
+      \strng{bibnamehash}{13466f3d80cebe76f80a290fc62b6ccf}
+      \strng{authorbibnamehash}{13466f3d80cebe76f80a290fc62b6ccf}
+      \strng{authornamehash}{13466f3d80cebe76f80a290fc62b6ccf}
+      \strng{authorfullhash}{13466f3d80cebe76f80a290fc62b6ccf}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Evolutionary Computation}
+      \field{number}{1}
+      \field{title}{Ant colony system: a cooperative learning approach to the traveling salesman problem}
+      \field{volume}{1}
+      \field{year}{1997}
+      \field{pages}{53\bibrangedash 66}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1109/4235.585892
+      \endverb
+    \endentry
+    \entry{kennedy1995pso}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=24fc7a255aa314e71ac724efd7ca5193}{%
+           family={Kennedy},
+           familyi={K\bibinitperiod},
+           given={James},
+           giveni={J\bibinitperiod}}}%
+        {{hash=21da0cb6f60840b2b15a6264d64909d8}{%
+           family={Eberhart},
+           familyi={E\bibinitperiod},
+           given={Russell},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{66c6dcfa4d8d0a108681f149b4837715}
+      \strng{fullhash}{66c6dcfa4d8d0a108681f149b4837715}
+      \strng{bibnamehash}{66c6dcfa4d8d0a108681f149b4837715}
+      \strng{authorbibnamehash}{66c6dcfa4d8d0a108681f149b4837715}
+      \strng{authornamehash}{66c6dcfa4d8d0a108681f149b4837715}
+      \strng{authorfullhash}{66c6dcfa4d8d0a108681f149b4837715}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of ICNN'95 - International Conference on Neural Networks}
+      \field{title}{Particle swarm optimization}
+      \field{volume}{4}
+      \field{year}{1995}
+      \field{pages}{1942\bibrangedash 1948}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1109/ICNN.1995.488968
+      \endverb
+    \endentry
+    \entry{chu2019marl}{article}{}
+      \name{author}{4}{}{%
+        {{hash=968c6791994b073bdc245a1b1b001ac7}{%
+           family={Chu},
+           familyi={C\bibinitperiod},
+           given={Tianshu},
+           giveni={T\bibinitperiod}}}%
+        {{hash=fcd6114a30fda9801eef65b9d374f56b}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Jie},
+           giveni={J\bibinitperiod}}}%
+        {{hash=cae40695149f944dfcea4d48123b2dd8}{%
+           family={Codecà},
+           familyi={C\bibinitperiod},
+           given={Lara},
+           giveni={L\bibinitperiod}}}%
+        {{hash=5d4519760275e7a22e279795dc42cbe3}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Zhaojian},
+           giveni={Z\bibinitperiod}}}%
+      }
+      \strng{namehash}{e2e362e0ed9f4ce98a30a98cd185bd5e}
+      \strng{fullhash}{81e2679fd9eacf152097cc4505a00479}
+      \strng{bibnamehash}{e2e362e0ed9f4ce98a30a98cd185bd5e}
+      \strng{authorbibnamehash}{e2e362e0ed9f4ce98a30a98cd185bd5e}
+      \strng{authornamehash}{e2e362e0ed9f4ce98a30a98cd185bd5e}
+      \strng{authorfullhash}{81e2679fd9eacf152097cc4505a00479}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Intelligent Transportation Systems}
+      \field{note}{arXiv:1903.04527}
+      \field{number}{3}
+      \field{title}{Multi-Agent Deep Reinforcement Learning for Large-Scale Traffic Signal Control}
+      \field{volume}{21}
+      \field{year}{2020}
+      \field{pages}{1086\bibrangedash 1095}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1109/TITS.2019.2901791
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

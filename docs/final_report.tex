@@ -29,12 +29,17 @@
 \title{SOITraCS: A Multi-Algorithm Framework for\\Self-Organizing Intelligent Traffic Control}
 
 \author{
-\IEEEauthorblockN{Anonymous Author}
+\IEEEauthorblockN{Cojocariu Raul}
 \IEEEauthorblockA{
-Department of Computer Science\\
+Department of Artificial Intelligence\\
 Politehnica University of Bucharest\\
-Bucharest, Romania\\
-email@example.com}
+Bucharest, Romania}
+\and
+\IEEEauthorblockN{Patrascu Adrian}
+\IEEEauthorblockA{
+Department of Artificial Intelligence\\
+Politehnica University of Bucharest\\
+Bucharest, Romania}
 }
 
 \maketitle
@@ -91,7 +96,7 @@ While each approach above has been studied extensively, few works examine how mu
 
 \subsection{Architecture Overview}
 
-SOITraCS adopts a three-layer design with publish/subscribe communication (Fig.~\ref{fig:architecture}). The core layer provides simulation infrastructure: a road network represented as a directed graph, traffic signal state machines, and vehicle entities. The algorithm layer contains six self-organizing modules, each subscribing to relevant events and publishing its outputs. The presentation layer handles visualization and user interaction.
+SOITraCS adopts a three-layer design with publish/subscribe communication (Fig.~\ref{fig:architecture}). The core layer provides simulation infrastructure: a road network represented as a directed graph, traffic signal state machines, and vehicle entities. The algorithm layer contains eight self-organizing modules, each subscribing to relevant events and publishing its outputs. The presentation layer handles visualization and user interaction.
 
 \begin{figure}[t]
 \centering
@@ -105,17 +110,21 @@ SOITraCS adopts a three-layer design with publish/subscribe communication (Fig.~
     \node[box, fill=SOITraCSTeal!20] (render) at (2.8, 2.4) {Renderer};
     \node[box, fill=SOITraCSTeal!20] (dash) at (4.8, 2.4) {Dashboard};
     \node[box, fill=orange!30, minimum width=5.8cm] (bus) at (2.8, 1.2) {EventBus};
-    \node[algobox, fill=blue!15] (ca) at (0, 0) {CA};
-    \node[algobox, fill=blue!15] (sotl) at (1.1, 0) {SOTL};
-    \node[algobox, fill=blue!15] (aco) at (2.2, 0) {ACO};
-    \node[algobox, fill=blue!15] (pso) at (3.3, 0) {PSO};
-    \node[algobox, fill=blue!15] (som) at (4.4, 0) {SOM};
-    \node[algobox, fill=blue!15] (marl) at (5.5, 0) {MARL};
-    \node[box, fill=green!15] (net) at (0.8, -1.2) {Network};
-    \node[box, fill=green!15] (sig) at (2.8, -1.2) {Signals};
-    \node[box, fill=green!15] (veh) at (4.8, -1.2) {Vehicles};
+    % Row 1: Core algorithms
+    \node[algobox, fill=blue!15] (ca) at (0, 0.3) {CA};
+    \node[algobox, fill=blue!15] (sotl) at (1.4, 0.3) {SOTL};
+    \node[algobox, fill=blue!15] (aco) at (2.8, 0.3) {ACO};
+    \node[algobox, fill=blue!15] (pso) at (4.2, 0.3) {PSO};
+    % Row 2: Learning/pattern algorithms
+    \node[algobox, fill=blue!15] (som) at (0, -0.5) {SOM};
+    \node[algobox, fill=blue!15] (marl) at (1.4, -0.5) {MARL};
+    \node[algobox, fill=blue!15] (marle) at (2.8, -0.5) {MARL-E};
+    \node[algobox, fill=blue!15] (press) at (4.2, -0.5) {Pressure};
+    \node[box, fill=green!15] (net) at (0.8, -1.6) {Network};
+    \node[box, fill=green!15] (sig) at (2.8, -1.6) {Signals};
+    \node[box, fill=green!15] (veh) at (4.8, -1.6) {Vehicles};
     \foreach \p in {ui, render, dash} { \draw[arrow] (\p) -- (bus); }
-    \foreach \alg in {ca, sotl, aco, pso, som, marl} { \draw[arrow] (bus) -- (\alg); }
+    \foreach \alg in {ca, sotl, aco, pso, som, marl, marle, press} { \draw[arrow] (bus) -- (\alg); }
     \draw[arrow] (ca) -- (net);
     \draw[arrow] (sotl) -- (sig);
     \draw[arrow] (aco) -- (veh);
