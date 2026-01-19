@@ -17,7 +17,6 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ExperimentConfig:
     """Configuration for a single experiment."""
@@ -53,14 +52,13 @@ class ExperimentConfig:
             network_path=data.get("network_path"),
         )
 
-
 @dataclass
 class ExperimentResult:
     """Result from a single experiment run."""
 
     config: ExperimentConfig
-    time_series: Dict[str, np.ndarray]  # metric -> values over time
-    summary: Dict[str, float]  # mean, std, min, max per metric
+    time_series: Dict[str, np.ndarray]
+    summary: Dict[str, float]
     algorithm_metrics: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +71,6 @@ class ExperimentResult:
             "summary": self.summary,
             "algorithm_metrics": self.algorithm_metrics,
         }
-
 
 class ExperimentRunner:
     """
@@ -107,14 +104,13 @@ class ExperimentRunner:
         from src.core.state import SimulationState
         from src.core.clock import SimulationClock
         from src.core.event_bus import get_event_bus
-        from config.settings import get_settings
+        from config.settings import Settings
 
         logger.info(f"Running experiment: {config.name} (seed={config.seed})")
 
-        # Create fresh simulation
-        settings = get_settings()
+        config_path = Path(__file__).parent.parent.parent / "config" / "algorithms.yaml"
+        settings = Settings.load(config_path)
 
-        # Configure algorithms based on experiment
         self._configure_algorithms(settings, config.enabled_algorithms)
 
         sim = Simulation(
@@ -125,39 +121,31 @@ class ExperimentRunner:
             headless=True,
         )
 
-        # Set seed before initialization
         sim.set_seed(config.seed)
 
-        # Initialize with network
         network_path = config.network_path or self.network_path
         sim.initialize(network_path)
 
-        # Activate scenario if specified
         if config.scenario:
             sim.activate_scenario(config.scenario)
 
-        # Run simulation and collect metrics
         time_series: Dict[str, List[float]] = {
             metric: [] for metric in config.metrics_to_track
         }
 
         snapshots = sim.run_ticks(config.duration_ticks)
 
-        # Extract time series from snapshots
         for snapshot in snapshots:
             for metric in config.metrics_to_track:
                 if hasattr(snapshot, metric):
                     time_series[metric].append(getattr(snapshot, metric))
 
-        # Convert to numpy arrays
         time_series_np = {
             metric: np.array(values) for metric, values in time_series.items()
         }
 
-        # Compute summary statistics
         summary = self._compute_summary(time_series_np)
 
-        # Collect algorithm-specific metrics
         algorithm_metrics = {}
         for algo_name, algo in sim.state.algorithms.items():
             if algo.enabled:
@@ -178,7 +166,8 @@ class ExperimentRunner:
     ) -> None:
         """Configure which algorithms are enabled in settings."""
         all_algorithms = [
-            "cellular_automata", "sotl", "aco", "pso", "som", "marl"
+            "cellular_automata", "sotl", "aco", "pso", "som", "marl",
+            "marl_enhanced", "pressure"
         ]
 
         for algo_name in all_algorithms:
@@ -198,7 +187,7 @@ class ExperimentRunner:
                 summary[f"{metric}_std"] = float(np.std(values))
                 summary[f"{metric}_min"] = float(np.min(values))
                 summary[f"{metric}_max"] = float(np.max(values))
-                # Also compute final value (last 10% average for stability)
+
                 tail_size = max(1, len(values) // 10)
                 summary[f"{metric}_final"] = float(np.mean(values[-tail_size:]))
 
@@ -254,7 +243,6 @@ class ExperimentRunner:
     def clear_results(self) -> None:
         """Clear all stored results."""
         self._results.clear()
-
 
 def load_experiment_config(path: str) -> Dict[str, Any]:
     """

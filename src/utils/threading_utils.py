@@ -6,7 +6,6 @@ import threading
 
 T = TypeVar('T')
 
-
 class ThreadPool:
     """Thread pool for background computation."""
 
@@ -40,7 +39,6 @@ class ThreadPool:
         for future in self._futures:
             future.cancel()
         self._futures.clear()
-
 
 def run_in_background(fn: Callable[..., T], *args, **kwargs) -> Future[T]:
     """

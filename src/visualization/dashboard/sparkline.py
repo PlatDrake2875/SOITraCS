@@ -4,7 +4,6 @@ from typing import Tuple
 import pygame
 import numpy as np
 
-
 class SparklineGraph:
     """Simple sparkline graph rendered with pygame.draw.lines()."""
 
@@ -31,27 +30,22 @@ class SparklineGraph:
         if len(data) < 2:
             return
 
-        # Take last max_points
         data = data[-self.max_points:]
 
-        # Normalize to height
         min_val, max_val = float(data.min()), float(data.max())
         is_flat = (max_val == min_val)
 
-        # Build points
         points = []
         for i, val in enumerate(data):
             px = x + int((i / (len(data) - 1)) * self.width)
             if is_flat:
-                py = y + self.height // 2  # Center line for flat data
+                py = y + self.height // 2
             else:
                 py = y + self.height - int(((val - min_val) / (max_val - min_val)) * self.height)
             points.append((px, py))
 
-        # Draw background rect (subtle)
         bg_rect = pygame.Rect(x, y, self.width, self.height)
         pygame.draw.rect(surface, (40, 42, 48), bg_rect, border_radius=2)
 
-        # Draw line (single pygame call - fast)
         if len(points) >= 2:
             pygame.draw.lines(surface, self.color, False, points, 2)

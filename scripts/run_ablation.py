@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Run ablation study experiments for SOITraCS.
 
@@ -23,10 +22,8 @@ import sys
 import time
 from pathlib import Path
 
-# Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -78,7 +75,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -87,11 +83,9 @@ def main():
     )
     logger = logging.getLogger(__name__)
 
-    # Create output directory
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load configuration
     from src.evaluation.experiment import (
         load_experiment_config,
         ExperimentRunner,
@@ -102,11 +96,9 @@ def main():
     logger.info(f"Loading configuration from {args.config}")
     config = load_experiment_config(args.config)
 
-    # Get settings
     experiments = config.get("experiments", [])
     settings = config.get("settings", {})
 
-    # Filter experiments if specified
     if args.experiments:
         experiments = [
             exp for exp in experiments
@@ -126,14 +118,12 @@ def main():
         "total_vehicles",
     ])
 
-    # Apply duration_ticks and metrics to each experiment
     for exp in experiments:
         if "duration_ticks" not in exp:
             exp["duration_ticks"] = duration_ticks
         if "metrics" not in exp:
             exp["metrics"] = metrics
 
-    # Create runner
     network_path = args.network or settings.get("network_path")
     runner = ExperimentRunner(network_path=network_path)
 
@@ -142,7 +132,6 @@ def main():
     logger.info(f"Duration: {duration_ticks} ticks per run")
     logger.info(f"Output directory: {output_dir}")
 
-    # Run experiments with progress tracking
     all_results = []
     run_count = 0
     start_time = time.time()
@@ -162,7 +151,6 @@ def main():
             seed = args.base_seed + run_idx
             run_count += 1
 
-            # Progress info
             elapsed = time.time() - start_time
             if run_count > 1:
                 avg_time = elapsed / (run_count - 1)
@@ -194,22 +182,18 @@ def main():
                 logger.error(f"Run failed: {e}")
                 continue
 
-    # Create DataFrame
     import pandas as pd
     df = pd.DataFrame(all_results)
 
-    # Save raw data
     raw_path = output_dir / "raw_data.csv"
     df.to_csv(raw_path, index=False)
     logger.info(f"\nRaw data saved to {raw_path}")
 
-    # Compute and save summary statistics
     summary_df = compute_statistics(df)
     summary_path = output_dir / "summary_statistics.csv"
     export_csv_summary(summary_df, str(summary_path))
     logger.info(f"Summary statistics saved to {summary_path}")
 
-    # Print summary to console
     total_time = time.time() - start_time
     print(f"\n{'='*60}")
     print("ABLATION STUDY COMPLETE")
@@ -222,7 +206,6 @@ def main():
     print(f"{'='*60}\n")
 
     logger.info("Ablation study completed successfully!")
-
 
 if __name__ == "__main__":
     main()

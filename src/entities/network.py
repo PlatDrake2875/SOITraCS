@@ -10,13 +10,12 @@ from .intersection import Intersection
 from .road import Road
 from .traffic_light import Direction, SignalPhase
 
-
 @dataclass
 class SpawnPoint:
     """Vehicle spawn point configuration."""
 
     intersection_id: int
-    rate: float = 0.1  # Vehicles per tick probability
+    rate: float = 0.1
     destinations: List[int] = field(default_factory=list)
 
     @classmethod
@@ -27,7 +26,6 @@ class SpawnPoint:
             rate=data.get("rate", 0.1),
             destinations=data.get("destinations", []),
         )
-
 
 @dataclass
 class RoadNetwork:
@@ -40,18 +38,15 @@ class RoadNetwork:
     name: str = "Default Network"
     description: str = ""
 
-    # Core entities
     intersections: Dict[int, Intersection] = field(default_factory=dict)
     roads: Dict[int, Road] = field(default_factory=dict)
     spawn_points: List[SpawnPoint] = field(default_factory=list)
 
-    # Scenario definitions (raw dict, parsed by ScenarioManager)
     scenarios: Dict[str, Any] = field(default_factory=dict)
 
-    # Adjacency for routing
-    _adjacency: Dict[int, List[Tuple[int, int]]] = field(default_factory=dict)  # intersection -> [(neighbor, road_id)]
-    _road_directions: Dict[Tuple[int, int], Direction] = field(default_factory=dict)  # (road_id, intersection_id) -> approach direction
-    _reverse_roads: Dict[int, Optional[int]] = field(default_factory=dict)  # road_id -> reverse_road_id (or None)
+    _adjacency: Dict[int, List[Tuple[int, int]]] = field(default_factory=dict)
+    _road_directions: Dict[Tuple[int, int], Direction] = field(default_factory=dict)
+    _reverse_roads: Dict[int, Optional[int]] = field(default_factory=dict)
 
     def add_intersection(self, intersection: Intersection) -> None:
         """Add an intersection to the network."""
@@ -63,15 +58,12 @@ class RoadNetwork:
         """Add a road to the network."""
         self.roads[road.id] = road
 
-        # Update adjacency
         if road.from_intersection not in self._adjacency:
             self._adjacency[road.from_intersection] = []
         self._adjacency[road.from_intersection].append((road.to_intersection, road.id))
 
-        # Update reverse road lookup
         self._update_reverse_lookup(road)
 
-        # Update intersection connections
         from_int = self.intersections.get(road.from_intersection)
         to_int = self.intersections.get(road.to_intersection)
 
@@ -83,17 +75,17 @@ class RoadNetwork:
 
     def _update_reverse_lookup(self, road: Road) -> None:
         """Update reverse road lookup for efficient bidirectional road queries."""
-        # Find if there's an existing road going the opposite direction
+
         for other_id, other_road in self.roads.items():
             if other_id == road.id:
                 continue
             if (other_road.from_intersection == road.to_intersection and
                 other_road.to_intersection == road.from_intersection):
-                # Found reverse road - link both directions
+
                 self._reverse_roads[road.id] = other_id
                 self._reverse_roads[other_id] = road.id
                 return
-        # No reverse road found
+
         self._reverse_roads[road.id] = None
 
     def get_reverse_road(self, road_id: int) -> Optional[Road]:
@@ -158,19 +150,18 @@ class RoadNetwork:
         Uses Dijkstra's algorithm with optional weight overrides (for ACO).
         """
         if start == end or end == -1:
-            # Random destination - pick any path
+
             outgoing = self.get_outgoing_roads(start)
             if outgoing:
                 return [outgoing[0].id]
             return []
 
-        # Dijkstra's algorithm
         distances: Dict[int, float] = {start: 0}
-        previous: Dict[int, Tuple[int, int]] = {}  # intersection -> (prev_intersection, road_id)
+        previous: Dict[int, Tuple[int, int]] = {}
         unvisited: Set[int] = set(self.intersections.keys())
 
         while unvisited:
-            # Find closest unvisited
+
             current = None
             current_dist = float('inf')
             for node in unvisited:
@@ -183,7 +174,6 @@ class RoadNetwork:
 
             unvisited.remove(current)
 
-            # Update neighbors
             for neighbor, road_id in self._adjacency.get(current, []):
                 if neighbor not in unvisited:
                     continue
@@ -192,7 +182,6 @@ class RoadNetwork:
                 if not road:
                     continue
 
-                # Use custom weight if provided (for ACO)
                 if weights and road_id in weights:
                     edge_weight = weights[road_id]
                 else:
@@ -203,7 +192,6 @@ class RoadNetwork:
                     distances[neighbor] = new_dist
                     previous[neighbor] = (current, road_id)
 
-        # Reconstruct path
         if end not in previous:
             return []
 
@@ -242,25 +230,20 @@ class RoadNetwork:
             description=data.get("description", ""),
         )
 
-        # Load intersections
         for int_data in data.get("intersections", []):
             intersection = Intersection.from_dict(int_data)
             network.add_intersection(intersection)
 
-        # Load roads
         for road_data in data.get("roads", []):
             road = cls._road_from_dict(road_data, network)
             network.add_road(road)
 
-        # Load spawn points
         for spawn_data in data.get("spawn_points", []):
             spawn_point = SpawnPoint.from_dict(spawn_data)
             network.spawn_points.append(spawn_point)
 
-        # Load scenarios (raw dict, ScenarioManager will parse)
         network.scenarios = data.get("scenarios", {})
 
-        # If no spawn points, create defaults at edge intersections
         if not network.spawn_points:
             network._create_default_spawn_points()
 
@@ -288,13 +271,13 @@ class RoadNetwork:
 
     def _create_default_spawn_points(self) -> None:
         """Create spawn points at edge intersections."""
-        # Find edge intersections (fewer than 4 connections)
+
         for int_id, intersection in self.intersections.items():
             connections = len(self._adjacency.get(int_id, []))
             incoming = len(self.get_incoming_roads(int_id))
 
             if connections + incoming < 4:
-                # Edge intersection - create spawn point
+
                 destinations = [
                     other_id for other_id in self.intersections
                     if other_id != int_id
@@ -302,7 +285,7 @@ class RoadNetwork:
                 self.spawn_points.append(SpawnPoint(
                     intersection_id=int_id,
                     rate=0.05,
-                    destinations=destinations[:3],  # Limit destinations
+                    destinations=destinations[:3],
                 ))
 
     @classmethod
@@ -310,7 +293,6 @@ class RoadNetwork:
         """Create a default grid network for testing."""
         network = cls(name="Default Grid", description=f"{rows}x{cols} grid network")
 
-        # Create intersections
         offset_x = 100
         offset_y = 100
 
@@ -321,7 +303,6 @@ class RoadNetwork:
 
                 intersection = Intersection(id=int_id, position=position)
 
-                # Set signal phases
                 phases = [
                     SignalPhase(green_directions={Direction.NORTH, Direction.SOUTH}, duration=30),
                     SignalPhase(green_directions={Direction.EAST, Direction.WEST}, duration=30),
@@ -330,18 +311,16 @@ class RoadNetwork:
 
                 network.add_intersection(intersection)
 
-        # Create roads (bidirectional)
         road_id = 0
-        road_length = spacing // 10  # Convert to cells
+        road_length = spacing // 10
 
         for row in range(rows):
             for col in range(cols):
                 int_id = row * cols + col
 
-                # Horizontal roads
                 if col < cols - 1:
                     right_id = int_id + 1
-                    # East
+
                     network.add_road(Road(
                         id=road_id,
                         from_intersection=int_id,
@@ -354,7 +333,6 @@ class RoadNetwork:
                     ))
                     road_id += 1
 
-                    # West
                     network.add_road(Road(
                         id=road_id,
                         from_intersection=right_id,
@@ -367,10 +345,9 @@ class RoadNetwork:
                     ))
                     road_id += 1
 
-                # Vertical roads
                 if row < rows - 1:
                     below_id = int_id + cols
-                    # South
+
                     network.add_road(Road(
                         id=road_id,
                         from_intersection=int_id,
@@ -383,7 +360,6 @@ class RoadNetwork:
                     ))
                     road_id += 1
 
-                    # North
                     network.add_road(Road(
                         id=road_id,
                         from_intersection=below_id,
@@ -396,7 +372,6 @@ class RoadNetwork:
                     ))
                     road_id += 1
 
-        # Create spawn points at corners
         corner_ids = [0, cols - 1, (rows - 1) * cols, rows * cols - 1]
         for corner_id in corner_ids:
             destinations = [cid for cid in corner_ids if cid != corner_id]

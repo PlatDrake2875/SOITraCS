@@ -18,7 +18,6 @@ from .scenario import ScenarioManager, ScenarioConfig
 from config.settings import Settings, get_settings
 from config.constants import CONGESTION_THRESHOLD, CONGESTION_CLEAR_THRESHOLD
 
-
 @dataclass
 class Simulation:
     """
@@ -34,18 +33,14 @@ class Simulation:
     event_bus: EventBus = field(default_factory=get_event_bus)
     headless: bool = field(default=False)
 
-    # Flags
     running: bool = field(default=False, init=False)
     _initialized: bool = field(default=False, init=False)
 
-    # Congestion tracking
     _congested_roads: Set[int] = field(default_factory=set, init=False)
 
-    # Scenario management
     _scenario_manager: Optional[ScenarioManager] = field(default=None, init=False)
     _spawn_multiplier: float = field(default=1.0, init=False)
 
-    # Random seed for reproducibility
     _seed: Optional[int] = field(default=None, init=False)
 
     def __post_init__(self) -> None:
@@ -68,7 +63,6 @@ class Simulation:
         random.seed(seed)
         np.random.seed(seed)
 
-        # Also seed any algorithm-specific RNGs
         for algo in self.state.algorithms.values():
             if hasattr(algo, "set_seed"):
                 algo.set_seed(seed)
@@ -88,17 +82,14 @@ class Simulation:
         """
         from src.entities.network import RoadNetwork
 
-        # Load network
         if network_path:
             self.state.network = RoadNetwork.from_yaml(Path(network_path))
         else:
-            # Create default grid network
+
             self.state.network = RoadNetwork.create_default_grid()
 
-        # Initialize algorithms
         self._init_algorithms()
 
-        # Initialize scenario manager
         if self.state.network and self.state.network.scenarios:
             scenarios = {
                 name: ScenarioConfig.from_dict(name, data)
@@ -108,7 +99,6 @@ class Simulation:
 
         self._initialized = True
 
-        # Fire start event
         self.event_bus.publish(Event(
             type=EventType.SIMULATION_START,
             source="simulation",
@@ -120,10 +110,9 @@ class Simulation:
 
         registry = get_algorithm_registry()
 
-        # Initialize each algorithm based on settings
         algo_settings = self.settings.algorithms
 
-        for algo_name in ["cellular_automata", "sotl", "aco", "pso", "som", "marl"]:
+        for algo_name in ["cellular_automata", "sotl", "aco", "pso", "som", "marl", "marl_enhanced", "pressure"]:
             config = getattr(algo_settings, algo_name, {})
             if config.get("enabled", False):
                 algo_class = registry.get(algo_name)
@@ -145,7 +134,6 @@ class Simulation:
         if not self._initialized:
             return 0
 
-        # Get number of ticks to process
         ticks = self.clock.update(real_dt)
 
         for _ in range(ticks):
@@ -158,21 +146,17 @@ class Simulation:
         tick = self.clock.tick
         dt = self.clock.dt
 
-        # Fire tick event
         self.event_bus.publish(Event(
             type=EventType.TICK,
             data={"tick": tick, "dt": dt},
             source="simulation",
         ))
 
-        # 1. Update network (roads, intersections) - handles incident timers
         if self.state.network:
             self.state.network.update(dt)
 
-        # 2. Check for congestion changes (fires events)
         self._check_congestion()
 
-        # 3. Update algorithms in priority order (ACO processes congestion events)
         algorithm_outputs: Dict[str, Any] = {}
 
         for algo in self.state.get_active_algorithms():
@@ -183,22 +167,16 @@ class Simulation:
             except Exception as e:
                 print(f"Error updating algorithm {algo.name}: {e}")
 
-        # 4. Process pending events
         self.event_bus.flush()
 
-        # 5. Reroute vehicles BEFORE movement (check while at road start)
         self._reroute_vehicles(tick)
 
-        # 6. Update vehicles (movement happens here)
         self._update_vehicles(dt)
 
-        # 7. Spawn new vehicles
         self._spawn_vehicles()
 
-        # 8. Update metrics
         self.state.update_metrics(tick)
 
-        # 9. Update scenario timer
         if self._scenario_manager:
             self._scenario_manager.update(self, tick)
 
@@ -211,12 +189,10 @@ class Simulation:
         for vehicle in list(self.state.vehicles.values()):
             vehicle.update(dt, self.state)
 
-            # Check for arrival
             if vehicle.state == VehicleState.ARRIVED:
                 vehicles_to_remove.append(vehicle.id)
                 self.state.record_arrival()
 
-        # Remove arrived vehicles
         for vid in vehicles_to_remove:
             self.state.remove_vehicle(vid)
             self.event_bus.publish(Event(
@@ -233,15 +209,13 @@ class Simulation:
         if not self.state.network:
             return
 
-        # Check vehicle limit
         if len(self.state.vehicles) >= self.settings.simulation.max_vehicles:
             return
 
-        # Try each spawn point
         for spawn_point in self.state.network.spawn_points:
             effective_rate = spawn_point.rate * self._spawn_multiplier
             if random.random() < effective_rate:
-                # Create vehicle
+
                 vehicle = Vehicle.spawn(
                     vehicle_id=self.state.get_next_vehicle_id(),
                     spawn_point=spawn_point,
@@ -268,7 +242,7 @@ class Simulation:
             was_congested = road_id in self._congested_roads
 
             if not was_congested and density >= CONGESTION_THRESHOLD:
-                # New congestion detected
+
                 self._congested_roads.add(road_id)
                 self.event_bus.publish(Event(
                     type=EventType.CONGESTION_DETECTED,
@@ -276,7 +250,7 @@ class Simulation:
                     source="simulation",
                 ))
             elif was_congested and density < CONGESTION_CLEAR_THRESHOLD:
-                # Congestion cleared (hysteresis)
+
                 self._congested_roads.discard(road_id)
                 self.event_bus.publish(Event(
                     type=EventType.CONGESTION_CLEARED,
@@ -289,7 +263,6 @@ class Simulation:
         if not self.state.network:
             return
 
-        # Get ACO algorithm if enabled
         aco = self.state.get_algorithm("aco")
         if not aco or not aco.enabled:
             return
@@ -298,12 +271,12 @@ class Simulation:
         reroute_interval = self.settings.simulation.reroute_interval
 
         for vehicle in self.state.vehicles.values():
-            # Check if enough time passed since last reroute
+
             if tick - vehicle._last_reroute_tick < reroute_interval:
                 continue
 
             if vehicle.reroute(self.state.network, weights, tick):
-                # Vehicle rerouted successfully
+
                 aco.record_reroute()
 
     def pause(self) -> None:
@@ -384,19 +357,19 @@ class Simulation:
 
     def _on_pause(self, event: Event) -> None:
         """Handle pause event."""
-        pass  # Clock already handles pause
+        pass
 
     def _on_resume(self, event: Event) -> None:
         """Handle resume event."""
-        pass  # Clock already handles resume
+        pass
 
     def _on_reset(self, event: Event) -> None:
         """Handle reset event."""
-        pass  # Already handled in reset()
+        pass
 
     def _on_speed_changed(self, event: Event) -> None:
         """Handle speed change event."""
-        pass  # Already handled in set_speed()
+        pass
 
     def set_spawn_multiplier(self, multiplier: float) -> None:
         """Set spawn rate multiplier."""
@@ -454,11 +427,10 @@ class Simulation:
         snapshots: List[MetricsSnapshot] = []
 
         for _ in range(n_ticks):
-            # Increment clock tick manually (since we're not using clock.update())
+
             self.clock._tick += 1
             self._tick()
 
-            # Copy current metrics snapshot
             m = self.state.current_metrics
             snapshot = MetricsSnapshot(
                 tick=m.tick,

@@ -5,7 +5,6 @@ from typing import Optional
 from datetime import datetime
 import pygame
 
-
 class Recorder:
     """
     Record simulation frames for thesis figures.

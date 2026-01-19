@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 MARL Training Script for SOITraCS.
 
@@ -16,10 +15,8 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -87,7 +84,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -96,7 +92,6 @@ def main():
     )
     logger = logging.getLogger(__name__)
 
-    # Create output directory
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -106,7 +101,6 @@ def main():
     from src.core.event_bus import get_event_bus
     from config.settings import get_settings
 
-    # Training metrics
     episode_rewards = []
     episode_avg_delays = []
     episode_epsilons = []
@@ -115,16 +109,14 @@ def main():
     logger.info(f"Ticks per episode: {args.ticks_per_episode}")
     logger.info(f"Learning rate: {args.learning_rate}, Initial epsilon: {args.epsilon}")
 
-    # Store Q-tables across episodes (persistent learning)
     persistent_q_tables = None
 
     for episode in range(args.episodes):
-        # Create fresh simulation for each episode
+
         settings = get_settings()
 
-        # Enable MARL in training mode with CA for vehicle movement
         settings.algorithms.cellular_automata["enabled"] = True
-        settings.algorithms.sotl["enabled"] = False  # Let MARL control signals
+        settings.algorithms.sotl["enabled"] = False
         settings.algorithms.aco["enabled"] = False
         settings.algorithms.pso["enabled"] = False
         settings.algorithms.som["enabled"] = False
@@ -142,41 +134,33 @@ def main():
             headless=True,
         )
 
-        # Set seed for reproducibility (different per episode for variety)
         sim.set_seed(args.seed + episode)
 
-        # Initialize simulation
         sim.initialize(args.network)
 
-        # Load persistent Q-tables if available
         marl_algo = sim.state.get_algorithm("marl")
         if persistent_q_tables is not None and marl_algo:
             for int_id, q_table in persistent_q_tables.items():
                 if int_id in marl_algo._q_tables:
                     marl_algo._q_tables[int_id] = q_table.copy()
 
-        # Enable SOTL control on intersections so MARL can request phase changes
         if sim.state.network:
             for intersection in sim.state.network.intersections.values():
                 intersection.enable_sotl(True)
 
-        # Run episode
         snapshots = sim.run_ticks(args.ticks_per_episode)
 
-        # Collect metrics
         if marl_algo:
             curves = marl_algo.get_learning_curves()
             episode_reward = float(np.sum(curves["episode_rewards"]))
             episode_rewards.append(episode_reward)
             episode_epsilons.append(marl_algo.epsilon)
 
-            # Save Q-tables for next episode
             persistent_q_tables = {
                 int_id: q_table.copy()
                 for int_id, q_table in marl_algo._q_tables.items()
             }
 
-        # Average delay for this episode
         delays = [s.average_delay for s in snapshots]
         avg_delay = np.mean(delays) if delays else 0.0
         episode_avg_delays.append(avg_delay)
@@ -188,7 +172,6 @@ def main():
             f"epsilon={marl_algo.epsilon:.3f}"
         )
 
-    # Save final Q-tables
     if persistent_q_tables:
         np.savez(
             args.output,
@@ -196,7 +179,6 @@ def main():
         )
         logger.info(f"Q-tables saved to {args.output}")
 
-    # Save learning curves
     curves_path = output_path.parent / "marl_learning_curves.npz"
     np.savez(
         curves_path,
@@ -206,7 +188,6 @@ def main():
     )
     logger.info(f"Learning curves saved to {curves_path}")
 
-    # Print summary
     print("\n" + "=" * 60)
     print("TRAINING SUMMARY")
     print("=" * 60)
@@ -215,24 +196,20 @@ def main():
     print(f"Avg reward (last 10): {np.mean(episode_rewards[-10:]):.2f}")
     print(f"Avg delay (last 10): {np.mean(episode_avg_delays[-10:]):.2f}")
 
-    # Check for learning (rewards should increase)
     early_rewards = np.mean(episode_rewards[:10]) if len(episode_rewards) >= 10 else 0
     late_rewards = np.mean(episode_rewards[-10:]) if len(episode_rewards) >= 10 else 0
     improvement = late_rewards - early_rewards
     print(f"Reward improvement: {improvement:+.2f}")
     print("=" * 60 + "\n")
 
-    # Plot learning curves if requested
     if args.plot:
         fig, axes = plt.subplots(2, 2, figsize=(12, 8))
 
-        # Episode rewards
         axes[0, 0].plot(episode_rewards)
         axes[0, 0].set_xlabel("Episode")
         axes[0, 0].set_ylabel("Total Reward")
         axes[0, 0].set_title("Episode Rewards")
 
-        # Smoothed rewards
         window = min(10, len(episode_rewards))
         smoothed = np.convolve(
             episode_rewards, np.ones(window) / window, mode="valid"
@@ -242,13 +219,11 @@ def main():
         axes[0, 1].set_ylabel("Smoothed Reward")
         axes[0, 1].set_title(f"Smoothed Rewards (window={window})")
 
-        # Average delay
         axes[1, 0].plot(episode_avg_delays)
         axes[1, 0].set_xlabel("Episode")
         axes[1, 0].set_ylabel("Average Delay")
         axes[1, 0].set_title("Average Delay per Episode")
 
-        # Epsilon decay
         axes[1, 1].plot(episode_epsilons)
         axes[1, 1].set_xlabel("Episode")
         axes[1, 1].set_ylabel("Epsilon")
@@ -262,7 +237,6 @@ def main():
         plt.show()
 
     logger.info("Training complete!")
-
 
 if __name__ == "__main__":
     main()

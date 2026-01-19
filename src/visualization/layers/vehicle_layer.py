@@ -11,7 +11,6 @@ from src.entities.network import RoadNetwork
 from src.entities.vehicle import Vehicle, VehicleState
 from .base import BaseLayer
 
-
 class VehicleLayer(BaseLayer):
     """
     Layer for rendering vehicles.
@@ -24,11 +23,9 @@ class VehicleLayer(BaseLayer):
         super().__init__(settings)
         self.network = network
 
-        # Vehicle rendering settings
         self.vehicle_length = 14
         self.vehicle_width = 7
 
-        # Selected vehicle (for highlighting)
         self.selected_vehicle_id: Optional[int] = None
 
     @property
@@ -57,14 +54,13 @@ class VehicleLayer(BaseLayer):
         zoom: float
     ) -> None:
         """Render a single vehicle with rounded corners and speed-based coloring."""
-        # Get world position
+
         world_pos = vehicle.get_world_position(self.network)
         if world_pos is None:
             return
 
         pos = self.transform_point(world_pos, offset, zoom)
 
-        # Get vehicle direction from road
         road = self.network.get_road(vehicle.current_road_id)
         if road:
             dx = road.end_pos[0] - road.start_pos[0]
@@ -78,21 +74,17 @@ class VehicleLayer(BaseLayer):
         else:
             dx, dy = 1, 0
 
-        # Calculate vehicle dimensions
         vlen = int(self.vehicle_length * zoom * 0.5)
         vwid = int(self.vehicle_width * zoom * 0.5)
 
-        # Perpendicular direction
         px, py = -dy, dx
 
-        # Determine color based on speed
         if vehicle.id == self.selected_vehicle_id:
             color = Colors.VEHICLE_SELECTED
         else:
             speed_ratio = vehicle.speed / max(1, vehicle.max_speed)
             color = Colors.speed_color(speed_ratio)
 
-        # Draw subtle shadow first
         shadow_offset = max(1, int(2 * zoom))
         shadow_corners = self._get_vehicle_corners(
             (pos[0] + shadow_offset, pos[1] + shadow_offset),
@@ -100,11 +92,9 @@ class VehicleLayer(BaseLayer):
         )
         self._draw_rounded_polygon(surface, shadow_corners, Colors.VEHICLE_SHADOW, zoom)
 
-        # Draw vehicle body
         corners = self._get_vehicle_corners(pos, dx, dy, px, py, vlen, vwid)
         self._draw_rounded_polygon(surface, corners, color, zoom)
 
-        # Draw subtle windshield area (front portion darker)
         self._draw_windshield(surface, pos, dx, dy, px, py, vlen, vwid, color, zoom)
 
     def _get_vehicle_corners(
@@ -131,10 +121,9 @@ class VehicleLayer(BaseLayer):
         zoom: float
     ) -> None:
         """Draw a polygon with rounded corners (approximation)."""
-        # For small vehicles, just draw a regular polygon with antialiased edges
+
         pygame.draw.polygon(surface, color, corners)
 
-        # Add slight outline for definition
         outline_color = Colors.lerp(color, Colors.BACKGROUND, 0.3)
         pygame.draw.polygon(surface, outline_color, corners, 1)
 
@@ -149,12 +138,11 @@ class VehicleLayer(BaseLayer):
         zoom: float
     ) -> None:
         """Draw a subtle windshield area on the vehicle."""
-        # Windshield is at the front portion of the vehicle
+
         windshield_ratio = 0.35
         ws_len = int(vlen * windshield_ratio)
         ws_wid = int(vwid * 0.7)
 
-        # Position windshield towards front
         ws_center_x = pos[0] + dx * (vlen * 0.4)
         ws_center_y = pos[1] + dy * (vlen * 0.4)
 
@@ -166,7 +154,6 @@ class VehicleLayer(BaseLayer):
         ]
         ws_corners = [(int(x), int(y)) for x, y in ws_corners]
 
-        # Slightly darker than body
         windshield_color = Colors.lerp(body_color, Colors.BACKGROUND, 0.25)
         pygame.draw.polygon(surface, windshield_color, ws_corners)
 

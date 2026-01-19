@@ -11,20 +11,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ScenarioConfig:
     """Configuration for a traffic scenario."""
     name: str
     spawn_rate_multiplier: float = 1.0
     blocked_roads: List[int] = field(default_factory=list)
-    duration: int = 0  # 0 = permanent until cancelled
+    duration: int = 0
 
     @classmethod
     def from_dict(cls, name: str, data: Dict[str, Any]) -> "ScenarioConfig":
         """Create from dictionary."""
         blocked = data.get("blocked_roads", [])
-        if "blocked_road" in data:  # Singular form from YAML (deprecated)
+        if "blocked_road" in data:
             logger.warning(
                 f"Scenario '{name}': 'blocked_road' is deprecated, use 'blocked_roads'"
             )
@@ -35,7 +34,6 @@ class ScenarioConfig:
             blocked_roads=blocked,
             duration=data.get("duration", 0),
         )
-
 
 class ScenarioManager:
     """Manages scenario activation and lifecycle."""
@@ -51,7 +49,6 @@ class ScenarioManager:
         if name not in self.scenarios:
             return False
 
-        # Deactivate current first
         if self.active_scenario:
             self.deactivate(simulation)
 
@@ -59,12 +56,10 @@ class ScenarioManager:
         self.active_scenario = name
         self._start_tick = tick
 
-        # Apply spawn rate multiplier
         simulation.set_spawn_multiplier(config.spawn_rate_multiplier)
 
-        # Block roads (inject incidents)
         for road_id in config.blocked_roads:
-            # Validate road exists before injection
+
             road = simulation.state.network.get_road(road_id)
             if road is None:
                 logger.warning(
@@ -83,10 +78,8 @@ class ScenarioManager:
         if not self.active_scenario:
             return
 
-        # Reset spawn rate
         simulation.set_spawn_multiplier(1.0)
 
-        # Clear incidents we created (only if we own them)
         for road_id in self._active_incidents:
             road = simulation.state.network.get_road(road_id)
             if road:

@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from src.entities.network import RoadNetwork
     from src.core.state import SimulationState
 
-
 @dataclass
 class AlgorithmVisualization:
     """
@@ -17,34 +16,26 @@ class AlgorithmVisualization:
     Each algorithm provides data for its visual overlay.
     """
 
-    # Layer enable flags
     show_overlay: bool = True
     opacity: float = 0.7
 
-    # Road-based overlays (road_id -> value)
     road_values: Dict[int, float] = field(default_factory=dict)
     road_colors: Dict[int, Tuple[int, int, int]] = field(default_factory=dict)
 
-    # Intersection-based overlays
     intersection_values: Dict[int, float] = field(default_factory=dict)
     intersection_colors: Dict[int, Tuple[int, int, int]] = field(default_factory=dict)
 
-    # Point-based overlays (particles, agents, etc.)
     points: List[Tuple[float, float]] = field(default_factory=list)
     point_colors: List[Tuple[int, int, int]] = field(default_factory=list)
     point_sizes: List[float] = field(default_factory=list)
 
-    # Line-based overlays (trails, connections)
     lines: List[Tuple[Tuple[float, float], Tuple[float, float]]] = field(default_factory=list)
     line_colors: List[Tuple[int, int, int, int]] = field(default_factory=list)
 
-    # Heatmap data (for SOM, congestion)
-    heatmap: Optional[Any] = None  # numpy array
+    heatmap: Optional[Any] = None
     heatmap_bounds: Optional[Tuple[float, float, float, float]] = None
 
-    # Text annotations
     annotations: List[Tuple[float, float, str]] = field(default_factory=list)
-
 
 class BaseAlgorithm(ABC):
     """

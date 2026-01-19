@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from src.entities.network import RoadNetwork
     from src.algorithms.base import BaseAlgorithm
 
-
 @dataclass
 class MetricsSnapshot:
     """Snapshot of simulation metrics at a point in time."""
@@ -24,9 +23,8 @@ class MetricsSnapshot:
     average_speed: float = 0.0
     average_delay: float = 0.0
     average_queue_length: float = 0.0
-    throughput: float = 0.0  # Vehicles/minute
+    throughput: float = 0.0
     total_wait_time: float = 0.0
-
 
 @dataclass
 class SimulationState:
@@ -36,22 +34,17 @@ class SimulationState:
     Provides a single source of truth that all components can reference.
     """
 
-    # Core entities
     vehicles: Dict[int, "Vehicle"] = field(default_factory=dict)
     network: "RoadNetwork | None" = None
 
-    # Algorithm instances
     algorithms: Dict[str, "BaseAlgorithm"] = field(default_factory=dict)
 
-    # Metrics tracking
     current_metrics: MetricsSnapshot = field(default_factory=MetricsSnapshot)
     metrics_history: List[MetricsSnapshot] = field(default_factory=list)
-    metrics_history_limit: int = 3600  # Store ~2 minutes at 30 ticks/sec
+    metrics_history_limit: int = 3600
 
-    # Vehicle ID counter
     _next_vehicle_id: int = field(default=0, init=False)
 
-    # Comparison mode
     comparison_mode: bool = False
     baseline_metrics: MetricsSnapshot | None = None
 
@@ -90,7 +83,6 @@ class SimulationState:
         self.current_metrics.tick = tick
         self.current_metrics.total_vehicles = num_vehicles
 
-        # Calculate queue lengths from network
         if self.network:
             queue_lengths = []
             for intersection in self.network.intersections.values():
@@ -98,7 +90,6 @@ class SimulationState:
             if queue_lengths:
                 self.current_metrics.average_queue_length = float(np.mean(queue_lengths))
 
-        # Store in history
         snapshot = MetricsSnapshot(
             tick=self.current_metrics.tick,
             total_vehicles=self.current_metrics.total_vehicles,
@@ -112,7 +103,6 @@ class SimulationState:
         )
         self.metrics_history.append(snapshot)
 
-        # Trim history
         if len(self.metrics_history) > self.metrics_history_limit:
             self.metrics_history = self.metrics_history[-self.metrics_history_limit:]
 
@@ -144,15 +134,12 @@ class SimulationState:
         self.metrics_history.clear()
         self.baseline_metrics = None
 
-        # Reset network if present
         if self.network:
             self.network.reset()
 
-        # Reset all algorithms
         for algo in self.algorithms.values():
             algo.reset()
 
-    # Valid metric names for get_metrics_array
     _VALID_METRICS: FrozenSet[str] = frozenset(
         ["tick", "total_vehicles", "vehicles_arrived", "vehicles_spawned",
          "average_speed", "average_delay", "average_queue_length",

@@ -24,7 +24,6 @@ from src.core.state import SimulationState, MetricsSnapshot
 from src.entities.network import RoadNetwork
 from src.entities.traffic_light import Direction
 
-
 class SelfOrganizationAnalyzer:
     """
     Compute metrics for self-organizing behavior in traffic systems.
@@ -67,18 +66,13 @@ class SelfOrganizationAnalyzer:
 
             total += 1
 
-            # Estimate travel time on this road
-            # Assuming speed in cells/tick and length in cells
             if road.speed_limit > 0:
                 travel_time = road.length / road.speed_limit
             else:
-                travel_time = 10.0  # Default estimate
+                travel_time = 10.0
 
-            # Compute phase offset between intersections
             phase_offset = self._compute_phase_offset(src_int, dst_int)
 
-            # Check if phases are offset appropriately for travel time
-            # Allow some tolerance (within 5 ticks)
             tolerance = 5.0
             if abs(phase_offset - travel_time) < tolerance:
                 coordinated += 1
@@ -95,15 +89,11 @@ class SelfOrganizationAnalyzer:
         src_tl = src_int.traffic_light
         dst_tl = dst_int.traffic_light
 
-        # Get time in phase for each
         src_time = src_tl.get_time_in_phase()
         dst_time = dst_tl.get_time_in_phase()
 
-        # Compute relative offset
-        # Positive means dst is ahead in its cycle
         offset = dst_time - src_time
 
-        # Normalize to phase duration
         phase_duration = src_tl.current_phase.duration
         if offset < 0:
             offset += phase_duration
@@ -126,7 +116,6 @@ class SelfOrganizationAnalyzer:
         if not state.network:
             return 0.0
 
-        # Get density for each road
         densities = []
         for road in state.network.roads.values():
             density = road.get_density()
@@ -136,7 +125,6 @@ class SelfOrganizationAnalyzer:
         if not densities:
             return 0.0
 
-        # Compute Shannon entropy
         total = sum(densities)
         probs = [d / total for d in densities]
 
@@ -145,7 +133,6 @@ class SelfOrganizationAnalyzer:
             if p > 0:
                 entropy -= p * np.log2(p)
 
-        # Normalize by maximum possible entropy
         max_entropy = np.log2(len(densities)) if len(densities) > 1 else 1.0
 
         return float(entropy / max_entropy) if max_entropy > 0 else 0.0
@@ -172,19 +159,16 @@ class SelfOrganizationAnalyzer:
         if len(intersections) < 2:
             return 0.0
 
-        # Get queue lengths for each intersection
         queues = [i.get_total_queue() for i in intersections]
         mean_queue = np.mean(queues)
 
         if np.std(queues) < 0.01:
-            return 0.0  # No variation
+            return 0.0
 
-        # Build adjacency from road connections
         n = len(intersections)
         int_ids = [i.id for i in intersections]
         id_to_idx = {id_: idx for idx, id_ in enumerate(int_ids)}
 
-        # Compute Moran's I
         numerator = 0.0
         weight_sum = 0.0
 
@@ -207,7 +191,6 @@ class SelfOrganizationAnalyzer:
 
         morans_i = (n / weight_sum) * (numerator / denominator)
 
-        # Clamp to [-1, 1]
         return float(max(-1.0, min(1.0, morans_i)))
 
     def compute_adaptation_rate(
@@ -232,29 +215,25 @@ class SelfOrganizationAnalyzer:
         if not metrics_before or not metrics_after:
             return float(len(metrics_after)) if metrics_after else 0.0
 
-        # Compute baseline (average before perturbation)
         baseline_values = [getattr(m, metric_name, 0) for m in metrics_before]
         baseline = np.mean(baseline_values) if baseline_values else 0.0
 
         if baseline == 0:
             return 0.0
 
-        # Find when metric recovers to threshold of baseline
         after_values = [getattr(m, metric_name, 0) for m in metrics_after]
 
         for i, value in enumerate(after_values):
-            # For delay metrics, lower is better, so we want value <= baseline/threshold
-            # For throughput, higher is better, so we want value >= baseline*threshold
+
             if metric_name in ["average_delay", "average_queue_length"]:
-                # Recovery means getting back below baseline level
+
                 if value <= baseline / recovery_threshold:
                     return float(i)
             else:
-                # Recovery means getting back above baseline level
+
                 if value >= baseline * recovery_threshold:
                     return float(i)
 
-        # Did not recover within the window
         return float(len(metrics_after))
 
     def compute_local_global_correlation(
@@ -282,14 +261,11 @@ class SelfOrganizationAnalyzer:
         local_values = list(local_metrics.values())
         local_mean = np.mean(local_values)
 
-        # If local average perfectly predicts global, not emergent
-        # If there's high discrepancy, emergence is present
         if global_metric == 0:
             return 0.0
 
         prediction_error = abs(global_metric - local_mean) / abs(global_metric)
 
-        # Invert: high error = high emergence
         emergence_score = min(1.0, prediction_error)
         return float(emergence_score)
 
@@ -312,13 +288,11 @@ class SelfOrganizationAnalyzer:
         for intersection in state.network.intersections.values():
             tl = intersection.traffic_light
 
-            # Convert phase state to angle (0 to 2*pi)
             phase_idx = tl.current_phase_idx
             n_phases = len(tl.phases)
             time_in_phase = tl.get_time_in_phase()
             phase_duration = tl.current_phase.duration
 
-            # Phase angle = (phase_idx + time_fraction) * 2*pi / n_phases
             phase_fraction = time_in_phase / max(1, phase_duration)
             angle = (phase_idx + phase_fraction) * 2 * np.pi / max(1, n_phases)
             phases.append(angle)
@@ -326,7 +300,6 @@ class SelfOrganizationAnalyzer:
         if not phases:
             return 0.0
 
-        # Kuramoto order parameter: |mean(exp(i*theta))|
         complex_phases = np.exp(1j * np.array(phases))
         order_parameter = np.abs(np.mean(complex_phases))
 
@@ -351,7 +324,6 @@ class SelfOrganizationAnalyzer:
             "phase_synchronization": self.compute_phase_synchronization(state),
         }
 
-        # Add local-global correlation using queue lengths
         if state.network:
             local_queues = {
                 int_id: intersection.get_total_queue()
@@ -363,7 +335,6 @@ class SelfOrganizationAnalyzer:
             )
 
         return metrics
-
 
 def analyze_experiment_self_organization(
     snapshots: List[MetricsSnapshot],
@@ -388,7 +359,6 @@ def analyze_experiment_self_organization(
         "total_ticks": len(snapshots),
     }
 
-    # Compute basic statistics from snapshots
     delays = [s.average_delay for s in snapshots]
     queues = [s.average_queue_length for s in snapshots]
     speeds = [s.average_speed for s in snapshots]
@@ -403,7 +373,6 @@ def analyze_experiment_self_organization(
     results["speed_mean"] = float(np.mean(speeds))
     results["speed_std"] = float(np.std(speeds))
 
-    # Stability metric: inverse of coefficient of variation
     if np.mean(delays) > 0:
         cv = np.std(delays) / np.mean(delays)
         results["stability"] = float(1.0 / (1.0 + cv))

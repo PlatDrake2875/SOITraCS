@@ -3,7 +3,6 @@
 from typing import Dict, Type, Optional
 from .base import BaseAlgorithm
 
-
 class AlgorithmRegistry:
     """Registry for algorithm classes."""
 
@@ -40,10 +39,7 @@ class AlgorithmRegistry:
         """Check if an algorithm is registered."""
         return name in self._algorithms
 
-
-# Global registry instance
 _registry: Optional[AlgorithmRegistry] = None
-
 
 def get_algorithm_registry() -> AlgorithmRegistry:
     """Get the global algorithm registry."""
@@ -53,15 +49,13 @@ def get_algorithm_registry() -> AlgorithmRegistry:
         _register_default_algorithms(_registry)
     return _registry
 
-
 def register_algorithm(name: str, algorithm_class: Type[BaseAlgorithm]) -> None:
     """Register an algorithm with the global registry."""
     get_algorithm_registry().register(name, algorithm_class)
 
-
 def _register_default_algorithms(registry: AlgorithmRegistry) -> None:
     """Register all built-in algorithms."""
-    # Import and register each algorithm
+
     try:
         from .cellular_automata import CellularAutomataAlgorithm
         registry.register("cellular_automata", CellularAutomataAlgorithm)
@@ -95,5 +89,17 @@ def _register_default_algorithms(registry: AlgorithmRegistry) -> None:
     try:
         from .marl import MARLAlgorithm
         registry.register("marl", MARLAlgorithm)
+    except ImportError:
+        pass
+
+    try:
+        from .marl.enhanced import EnhancedMARLAlgorithm
+        registry.register("marl_enhanced", EnhancedMARLAlgorithm)
+    except ImportError:
+        pass
+
+    try:
+        from .pressure import PressureBasedAlgorithm
+        registry.register("pressure", PressureBasedAlgorithm)
     except ImportError:
         pass

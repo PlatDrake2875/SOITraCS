@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 SOITraCS - Self-Organizing Intelligent Traffic Control Systems
 
@@ -15,7 +14,6 @@ import time
 
 import pygame
 
-# Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config.settings import Settings, get_settings
@@ -27,7 +25,6 @@ from src.core.event_bus import get_event_bus, reset_event_bus
 from src.entities.network import RoadNetwork
 from src.visualization.renderer import Renderer
 
-
 class Application:
     """Main application class."""
 
@@ -36,13 +33,11 @@ class Application:
         self.settings = get_settings()
         self.running = False
 
-        # Override settings from args
         if args.network:
             self.network_path = Path(args.network)
         else:
             self.network_path = None
 
-        # Pygame setup
         pygame.init()
         pygame.display.set_caption(self.settings.display.title)
 
@@ -53,36 +48,30 @@ class Application:
 
         self.clock = pygame.time.Clock()
 
-        # Core components
         self.simulation: Simulation | None = None
         self.renderer: Renderer | None = None
 
-        # Timing
         self.last_time = time.time()
         self.fps_display_timer = 0
 
     def initialize(self) -> None:
         """Initialize simulation and renderer."""
-        # Reset event bus
+
         reset_event_bus()
 
-        # Create simulation
         self.simulation = Simulation(settings=self.settings)
 
-        # Initialize with network
         if self.network_path and self.network_path.exists():
             self.simulation.initialize(self.network_path)
         else:
-            self.simulation.initialize()  # Use default grid
+            self.simulation.initialize()
 
-        # Create renderer
         self.renderer = Renderer(self.screen, self.settings)
         self.renderer.initialize(
             self.simulation.state.network,
             self.simulation.state
         )
 
-        # Set up dashboard callbacks
         if self.renderer.dashboard:
             self.renderer.dashboard.set_callbacks(
                 on_algorithm_toggle=self._on_algorithm_toggle,
@@ -97,29 +86,23 @@ class Application:
         self.running = True
 
         while self.running:
-            # Calculate delta time
+
             current_time = time.time()
             dt = current_time - self.last_time
             self.last_time = current_time
 
-            # Handle events
             self._handle_events()
 
-            # Update simulation
             if self.simulation:
                 self.simulation.update(dt)
 
-            # Render
             if self.renderer and self.simulation:
                 self.renderer.render(self.simulation.state, dt)
 
-            # Draw FPS counter
             self._draw_fps()
 
-            # Update display
             pygame.display.flip()
 
-            # Cap frame rate
             self.clock.tick(self.settings.display.fps_target)
 
         pygame.quit()
@@ -164,7 +147,6 @@ class Application:
         elif event.key == pygame.K_4:
             self._on_speed_change(5.0)
 
-        # Algorithm toggles
         elif event.key == pygame.K_c:
             self._on_algorithm_toggle("cellular_automata")
 
@@ -183,7 +165,6 @@ class Application:
         elif event.key == pygame.K_m:
             self._on_algorithm_toggle("marl")
 
-        # Scenario shortcuts
         elif event.key == pygame.K_F1:
             self._on_scenario_change("normal")
 
@@ -195,19 +176,19 @@ class Application:
 
     def _handle_mouse_click(self, event: pygame.event.Event) -> None:
         """Handle mouse click events."""
-        if event.button == 1:  # Left click
+        if event.button == 1:
             if self.renderer:
                 result = self.renderer.handle_click(event.pos)
                 if result:
                     self._handle_click_result(result)
 
-        elif event.button == 3:  # Right click
-            # Inject incident at clicked road
+        elif event.button == 3:
+
             if self.renderer and self.simulation:
                 world_pos = self.renderer.screen_to_world(event.pos)
-                # Check if clicked on a road
+
                 for road_id, road in self.simulation.state.network.roads.items():
-                    # Simple distance check (could be improved)
+
                     if self._point_near_road(world_pos, road):
                         self.simulation.inject_incident(road_id, 100)
                         print(f"Incident injected on road {road_id}")
@@ -289,7 +270,6 @@ class Application:
         fps = int(self.clock.get_fps())
         font = pygame.font.Font(None, 24)
 
-        # Simulation info
         if self.simulation:
             tick = self.simulation.clock.tick
             sim_time = self.simulation.clock.format_time()
@@ -302,7 +282,6 @@ class Application:
 
         text_surface = font.render(info_text, True, Colors.TEXT_ACCENT)
         self.screen.blit(text_surface, (10, 10))
-
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -338,7 +317,6 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
-
 def main() -> None:
     """Main entry point."""
     args = parse_args()
@@ -353,7 +331,6 @@ def main() -> None:
         import traceback
         traceback.print_exc()
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

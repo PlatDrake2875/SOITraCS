@@ -7,44 +7,36 @@ from threading import Lock
 from collections import defaultdict
 import time
 
-
 class EventType(Enum):
     """Event types for algorithm communication."""
 
-    # Simulation lifecycle
-    TICK = auto()                      # Every simulation step
+    TICK = auto()
     SIMULATION_START = auto()
     SIMULATION_PAUSE = auto()
     SIMULATION_RESUME = auto()
     SIMULATION_RESET = auto()
 
-    # Traffic events
     VEHICLE_SPAWNED = auto()
     VEHICLE_DESPAWNED = auto()
     VEHICLE_ARRIVED = auto()
     CONGESTION_DETECTED = auto()
     CONGESTION_CLEARED = auto()
 
-    # Signal events
     SIGNAL_PHASE_CHANGED = auto()
     SIGNAL_TIMING_UPDATED = auto()
-    SIGNAL_TIMING_SUGGESTED = auto()  # PSO timing recommendations
+    SIGNAL_TIMING_SUGGESTED = auto()
 
-    # Algorithm events
-    PATTERN_RECOGNIZED = auto()        # SOM classification
-    ROUTE_UPDATED = auto()             # ACO rerouting
-    OPTIMIZATION_COMPLETE = auto()     # PSO convergence
-    POLICY_UPDATED = auto()            # MARL decision
+    PATTERN_RECOGNIZED = auto()
+    ROUTE_UPDATED = auto()
+    OPTIMIZATION_COMPLETE = auto()
+    POLICY_UPDATED = auto()
 
-    # User interaction
     INCIDENT_INJECTED = auto()
     ALGORITHM_TOGGLED = auto()
     SPEED_CHANGED = auto()
 
-    # Scenario events
     SCENARIO_STARTED = auto()
     SCENARIO_ENDED = auto()
-
 
 @dataclass
 class Event:
@@ -53,17 +45,14 @@ class Event:
     type: EventType
     data: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
-    source: str = ""  # Algorithm or component that fired the event
-    priority: int = 0  # Higher priority events processed first
+    source: str = ""
+    priority: int = 0
 
     def __lt__(self, other: "Event") -> bool:
         """Compare events by priority for priority queue."""
-        return self.priority > other.priority  # Higher priority first
+        return self.priority > other.priority
 
-
-# Type alias for event handlers
 EventHandler = Callable[[Event], None]
-
 
 class EventBus:
     """Thread-safe publish/subscribe event system."""
@@ -115,7 +104,7 @@ class EventBus:
 
     def _dispatch_event(self, event: Event) -> None:
         """Dispatch a single event to all handlers."""
-        # Store in history
+
         with self._lock:
             self._event_history.append(event)
             if len(self._event_history) > self._history_limit:
@@ -123,7 +112,6 @@ class EventBus:
 
             handlers = list(self._handlers[event.type])
 
-        # Call handlers outside lock to prevent deadlocks
         for handler in handlers:
             try:
                 handler(event)
@@ -162,10 +150,7 @@ class EventBus:
         with self._lock:
             return len(self._pending_events)
 
-
-# Global event bus instance
 _event_bus: EventBus | None = None
-
 
 def get_event_bus() -> EventBus:
     """Get the global event bus instance."""
@@ -173,7 +158,6 @@ def get_event_bus() -> EventBus:
     if _event_bus is None:
         _event_bus = EventBus()
     return _event_bus
-
 
 def reset_event_bus() -> None:
     """Reset the global event bus (for testing)."""

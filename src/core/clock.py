@@ -5,7 +5,6 @@ from enum import Enum
 from typing import List
 import time
 
-
 class SimulationSpeed(Enum):
     """Preset simulation speeds."""
     PAUSED = 0.0
@@ -15,7 +14,6 @@ class SimulationSpeed(Enum):
     VERY_FAST = 5.0
     MAX = 10.0
 
-
 @dataclass
 class SimulationClock:
     """
@@ -24,10 +22,9 @@ class SimulationClock:
     Separates simulation time from real time to allow speed control.
     """
 
-    ticks_per_second: int = 30  # Simulation ticks per real second at 1x speed
-    speed: float = 1.0  # Speed multiplier
+    ticks_per_second: int = 30
+    speed: float = 1.0
 
-    # Internal state
     _tick: int = field(default=0, init=False)
     _accumulated_time: float = field(default=0.0, init=False)
     _last_update: float = field(default_factory=time.time, init=False)
@@ -77,30 +74,23 @@ class SimulationClock:
         if self._paused or self.speed <= 0:
             return 0
 
-        # Scale real time by speed multiplier
         scaled_dt = real_dt * self.speed
 
-        # Accumulate time
         self._accumulated_time += scaled_dt
 
-        # Calculate ticks to process
         tick_duration = self.dt
         ticks_to_process = int(self._accumulated_time / tick_duration)
 
-        # Cap ticks to prevent spiral of death
-        max_ticks = 10  # Maximum ticks per frame
+        max_ticks = 10
         ticks_to_process = min(ticks_to_process, max_ticks)
 
-        # Consume processed time
         self._accumulated_time -= ticks_to_process * tick_duration
 
-        # Update tick counter
         self._tick += ticks_to_process
 
-        # Track timing for FPS calculation
         now = time.time()
         self._tick_times.append(now)
-        # Keep only last second of timing data
+
         cutoff = now - 1.0
         self._tick_times = [t for t in self._tick_times if t > cutoff]
 
@@ -113,7 +103,7 @@ class SimulationClock:
     def resume(self) -> None:
         """Resume the simulation."""
         self._paused = False
-        # Reset accumulated time to prevent time jump
+
         self._accumulated_time = 0.0
         self._last_update = time.time()
 

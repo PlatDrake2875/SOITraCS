@@ -11,7 +11,6 @@ from src.entities.network import RoadNetwork
 from src.entities.traffic_light import SignalState, Direction
 from .base import BaseLayer
 
-
 class SignalLayer(BaseLayer):
     """
     Layer for rendering traffic signals at intersections.
@@ -24,10 +23,9 @@ class SignalLayer(BaseLayer):
         super().__init__(settings)
         self.network = network
 
-        # Signal rendering settings
-        self.strip_length = 16  # Length of signal strip
-        self.strip_width = 5   # Width of signal strip
-        self.strip_offset = 22  # Distance from intersection center
+        self.strip_length = 16
+        self.strip_width = 5
+        self.strip_offset = 22
 
     @property
     def name(self) -> str:
@@ -60,19 +58,15 @@ class SignalLayer(BaseLayer):
         strip_length = int(self.strip_length * zoom)
         strip_width = max(2, int(self.strip_width * zoom))
 
-        # Get signal states for NS and EW groups
         ns_directions = [Direction.NORTH, Direction.SOUTH]
         ew_directions = [Direction.EAST, Direction.WEST]
 
-        # Determine phase colors
         ns_state = self._get_phase_state(intersection, ns_directions)
         ew_state = self._get_phase_state(intersection, ew_directions)
 
         ns_color = self._state_to_color(ns_state)
         ew_color = self._state_to_color(ew_state)
 
-        # Draw NS signal strips (top and bottom of intersection)
-        # North strip
         if intersection.get_incoming_road(Direction.NORTH):
             self._draw_signal_strip(
                 surface, center,
@@ -81,7 +75,6 @@ class SignalLayer(BaseLayer):
                 ns_color, horizontal=True, zoom=zoom
             )
 
-        # South strip
         if intersection.get_incoming_road(Direction.SOUTH):
             self._draw_signal_strip(
                 surface, center,
@@ -90,8 +83,6 @@ class SignalLayer(BaseLayer):
                 ns_color, horizontal=True, zoom=zoom
             )
 
-        # Draw EW signal strips (left and right of intersection)
-        # West strip
         if intersection.get_incoming_road(Direction.WEST):
             self._draw_signal_strip(
                 surface, center,
@@ -100,7 +91,6 @@ class SignalLayer(BaseLayer):
                 ew_color, horizontal=False, zoom=zoom
             )
 
-        # East strip
         if intersection.get_incoming_road(Direction.EAST):
             self._draw_signal_strip(
                 surface, center,
@@ -109,7 +99,6 @@ class SignalLayer(BaseLayer):
                 ew_color, horizontal=False, zoom=zoom
             )
 
-        # Draw subtle phase timer arc
         self._draw_phase_timer(surface, intersection, center, zoom)
 
     def _get_phase_state(self, intersection, directions) -> SignalState:
@@ -158,13 +147,11 @@ class SignalLayer(BaseLayer):
                 length
             )
 
-        # Draw glow (slightly larger, semi-transparent)
         glow_expand = max(2, int(3 * zoom))
         glow_rect = rect.inflate(glow_expand * 2, glow_expand * 2)
         glow_color = Colors.lerp(color, Colors.BACKGROUND, 0.6)
         pygame.draw.rect(surface, glow_color, glow_rect, border_radius=3)
 
-        # Draw main signal strip
         pygame.draw.rect(surface, color, rect, border_radius=2)
 
     def _draw_phase_timer(
@@ -175,11 +162,11 @@ class SignalLayer(BaseLayer):
         zoom: float
     ) -> None:
         """Draw a subtle arc showing phase progress."""
-        # Get current phase progress (0.0 to 1.0)
+
         if hasattr(intersection, 'get_phase_progress'):
             progress = intersection.get_phase_progress()
         else:
-            # Fallback: estimate from timer if available
+
             progress = 0.0
             if hasattr(intersection, 'phase_timer') and hasattr(intersection, 'current_phase'):
                 phase = intersection.current_phase
@@ -189,7 +176,6 @@ class SignalLayer(BaseLayer):
         if progress <= 0:
             return
 
-        # Draw arc
         arc_radius = int(18 * zoom)
         arc_width = max(1, int(2 * zoom))
         arc_rect = pygame.Rect(
@@ -199,11 +185,9 @@ class SignalLayer(BaseLayer):
             arc_radius * 2
         )
 
-        # Arc from top, clockwise based on progress
-        start_angle = math.pi / 2  # Top
+        start_angle = math.pi / 2
         end_angle = start_angle - (progress * 2 * math.pi)
 
-        # Draw arc with subtle color
         arc_color = Colors.lerp(Colors.TEXT_SECONDARY, Colors.BACKGROUND, 0.5)
         pygame.draw.arc(surface, arc_color, arc_rect, end_angle, start_angle, arc_width)
 

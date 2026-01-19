@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-
 def compute_statistics(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute mean, std, 95% CI for each metric grouped by experiment.
@@ -21,11 +20,10 @@ def compute_statistics(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with aggregated statistics per experiment
     """
-    # Identify metric columns (exclude metadata columns)
+
     metadata_cols = {"experiment", "run", "seed", "description", "algorithms"}
     metric_cols = [col for col in df.columns if col not in metadata_cols]
 
-    # Group by experiment and compute statistics
     results = []
 
     for exp_name, group in df.groupby("experiment"):
@@ -39,7 +37,6 @@ def compute_statistics(df: pd.DataFrame) -> pd.DataFrame:
                 std = values.std()
                 n = len(values)
 
-                # 95% confidence interval (t-distribution for small samples)
                 if n > 1:
                     ci = stats.t.ppf(0.975, n - 1) * std / np.sqrt(n)
                 else:
@@ -54,7 +51,6 @@ def compute_statistics(df: pd.DataFrame) -> pd.DataFrame:
         results.append(row)
 
     return pd.DataFrame(results)
-
 
 def paired_comparison(
     baseline_df: pd.DataFrame,
@@ -73,7 +69,7 @@ def paired_comparison(
         Dictionary with p-values and effect sizes for each metric
     """
     if metrics is None:
-        # Auto-detect metric columns
+
         metadata_cols = {"experiment", "run", "seed"}
         metrics = [
             col for col in baseline_df.columns
@@ -92,12 +88,10 @@ def paired_comparison(
         if len(baseline_vals) < 2 or len(treatment_vals) < 2:
             continue
 
-        # Welch's t-test (unequal variances)
         t_stat, p_value = stats.ttest_ind(
             baseline_vals, treatment_vals, equal_var=False
         )
 
-        # Cohen's d effect size
         pooled_std = np.sqrt(
             (baseline_vals.std() ** 2 + treatment_vals.std() ** 2) / 2
         )
@@ -106,7 +100,6 @@ def paired_comparison(
         else:
             cohens_d = 0.0
 
-        # Percent improvement (negative is better for delay metrics)
         baseline_mean = baseline_vals.mean()
         if baseline_mean != 0:
             pct_change = (
@@ -129,7 +122,6 @@ def paired_comparison(
 
     return results
 
-
 def export_latex_table(
     summary_df: pd.DataFrame,
     metrics: Optional[List[str]] = None,
@@ -149,37 +141,34 @@ def export_latex_table(
         LaTeX table string
     """
     if metrics is None:
-        # Find metrics by looking for _mean columns
+
         metrics = []
         for col in summary_df.columns:
             if col.endswith("_mean"):
-                base_metric = col[:-5]  # Remove "_mean"
+                base_metric = col[:-5]
                 if base_metric not in metrics:
                     metrics.append(base_metric)
 
-    # Build LaTeX table
-    n_cols = len(metrics) + 1  # +1 for experiment name
+    n_cols = len(metrics) + 1
     col_spec = "l" + "r" * len(metrics)
 
     lines = [
         "\\begin{table}[htbp]",
         "\\centering",
-        f"\\caption{{{caption}}}",
-        f"\\label{{{label}}}",
-        f"\\begin{{tabular}}{{{col_spec}}}",
+        f"\\caption{ {caption}} ",
+        f"\\label{ {label}} ",
+        f"\\begin{ tabular} { {col_spec}} ",
         "\\toprule",
     ]
 
-    # Header row
     header_parts = ["Experiment"]
     for metric in metrics:
-        # Format metric name for display
+
         display_name = metric.replace("_", " ").title()
         header_parts.append(display_name)
     lines.append(" & ".join(header_parts) + " \\\\")
     lines.append("\\midrule")
 
-    # Data rows
     for _, row in summary_df.iterrows():
         parts = [str(row["experiment"])]
 
@@ -204,7 +193,6 @@ def export_latex_table(
 
     return "\n".join(lines)
 
-
 def export_csv_summary(summary_df: pd.DataFrame, path: str) -> None:
     """
     Export summary statistics to CSV file.
@@ -214,7 +202,6 @@ def export_csv_summary(summary_df: pd.DataFrame, path: str) -> None:
         path: Output file path
     """
     summary_df.to_csv(path, index=False)
-
 
 def format_comparison_results(
     comparison: Dict[str, Dict[str, float]]
@@ -235,7 +222,6 @@ def format_comparison_results(
 
     df = pd.DataFrame(rows)
 
-    # Add significance markers
     if "p_value" in df.columns:
         df["significance"] = df["p_value"].apply(
             lambda p: "***" if p < 0.001 else (
@@ -244,7 +230,6 @@ def format_comparison_results(
         )
 
     return df
-
 
 def compute_improvement_summary(
     raw_df: pd.DataFrame,
@@ -285,12 +270,6 @@ def compute_improvement_summary(
         results.append(row)
 
     return pd.DataFrame(results)
-
-
-# =============================================================================
-# Ablation Study Analysis Functions
-# =============================================================================
-
 
 def compute_additive_contribution(
     raw_df: pd.DataFrame,
@@ -359,7 +338,6 @@ def compute_additive_contribution(
 
     return results
 
-
 def compute_interaction_effect(
     raw_df: pd.DataFrame,
     baseline_name: str,
@@ -409,7 +387,6 @@ def compute_interaction_effect(
             )
         ]
 
-    # Compute mean values for each experiment
     exp_means = raw_df.groupby("experiment")[metrics].mean()
 
     for exp_name in [baseline_name, single_a_name, single_b_name, combination_name]:
@@ -418,7 +395,6 @@ def compute_interaction_effect(
 
     results = {}
 
-    # Metrics where lower is better
     lower_is_better = {"average_delay_final", "average_queue_length_final"}
 
     for metric in metrics:
@@ -430,7 +406,6 @@ def compute_interaction_effect(
         single_b_mean = exp_means.loc[single_b_name, metric]
         combination_mean = exp_means.loc[combination_name, metric]
 
-        # Interaction effect formula
         interaction = (
             combination_mean
             - single_a_mean
@@ -438,15 +413,13 @@ def compute_interaction_effect(
             + baseline_mean
         )
 
-        # Expected value if effects were purely additive
         expected_additive = single_a_mean + single_b_mean - baseline_mean
 
-        # Determine interaction type
         if metric in lower_is_better:
-            # Negative interaction = synergy (combo better than expected)
+
             interaction_type = "synergy" if interaction < 0 else "interference"
         else:
-            # Positive interaction = synergy (combo better than expected)
+
             interaction_type = "synergy" if interaction > 0 else "interference"
 
         results[metric] = {
@@ -460,7 +433,6 @@ def compute_interaction_effect(
         }
 
     return results
-
 
 def compute_subtractive_importance(
     raw_df: pd.DataFrame,
@@ -507,17 +479,13 @@ def compute_subtractive_importance(
 
     comparison = paired_comparison(full_stack_df, reduced_df, metrics)
 
-    # Metrics where lower is better
     lower_is_better = {"average_delay_final", "average_queue_length_final"}
 
     results = {}
     for metric, stats in comparison.items():
-        full_mean = stats["baseline_mean"]  # full_stack is "baseline" in comparison
+        full_mean = stats["baseline_mean"]
         reduced_mean = stats["treatment_mean"]
 
-        # Importance = how much worse performance is without the algorithm
-        # For "lower is better": importance = reduced - full (positive = algorithm helps)
-        # For "higher is better": importance = full - reduced (positive = algorithm helps)
         if metric in lower_is_better:
             importance = reduced_mean - full_mean
         else:
@@ -534,7 +502,7 @@ def compute_subtractive_importance(
             "importance": importance,
             "pct_impact": pct_impact,
             "p_value": stats["p_value"],
-            "cohens_d": abs(stats["cohens_d"]),  # Use absolute effect size
+            "cohens_d": abs(stats["cohens_d"]),
             "significant": stats["significant"],
         }
 

@@ -73,7 +73,7 @@
         \begin{column}{0.5\textwidth}
             \textbf{Primary Objectives}
             \begin{enumerate}
-                \item Integrate \alert{6 self-organizing algorithms} into a unified simulation
+                \item Integrate \alert{8 self-organizing algorithms} into a unified simulation
                 \item Create an \alert{educational visualization} tool
                 \item Demonstrate \alert{emergent behavior} in traffic systems
             \end{enumerate}
@@ -129,23 +129,28 @@
         % EventBus - centered at x=4
         \node[box, fill=orange!30, minimum width=7.5cm] (bus) at (4, 1.5) {EventBus (Pub/Sub Communication)};
 
-        % Algorithm Layer - 6 boxes evenly spaced from x=0.5 to x=7.5
-        \node[algobox, fill=blue!15] (ca) at (0.5, 0) {CA};
-        \node[algobox, fill=blue!15] (sotl) at (1.9, 0) {SOTL};
-        \node[algobox, fill=blue!15] (aco) at (3.3, 0) {ACO};
-        \node[algobox, fill=blue!15] (pso) at (4.7, 0) {PSO};
-        \node[algobox, fill=blue!15] (som) at (6.1, 0) {SOM};
-        \node[algobox, fill=blue!15] (marl) at (7.5, 0) {MARL};
+        % Algorithm Layer - 2 rows of 4, evenly spaced
+        % Row 1: Core control algorithms
+        \node[algobox, fill=blue!15] (ca) at (1, 0.3) {CA};
+        \node[algobox, fill=blue!15] (sotl) at (3, 0.3) {SOTL};
+        \node[algobox, fill=blue!15] (aco) at (5, 0.3) {ACO};
+        \node[algobox, fill=blue!15] (pso) at (7, 0.3) {PSO};
+
+        % Row 2: Learning/pattern algorithms
+        \node[algobox, fill=blue!15] (som) at (1, -0.6) {SOM};
+        \node[algobox, fill=blue!15] (marl) at (3, -0.6) {MARL};
+        \node[algobox, fill=blue!15] (marle) at (5, -0.6) {MARL Enh};
+        \node[algobox, fill=blue!15] (press) at (7, -0.6) {Pressure};
 
         % Core Layer - 3 boxes centered at x=4 (Signals in middle to avoid crossing arrows)
-        \node[box, fill=green!15] (net) at (1.5, -1.5) {Network};
-        \node[box, fill=green!15] (sig) at (4, -1.5) {Signals};
-        \node[box, fill=green!15] (veh) at (6.5, -1.5) {Vehicles};
+        \node[box, fill=green!15] (net) at (1.5, -2.0) {Network};
+        \node[box, fill=green!15] (sig) at (4, -2.0) {Signals};
+        \node[box, fill=green!15] (veh) at (6.5, -2.0) {Vehicles};
 
         % Layer labels
-        \node[font=\scriptsize\itshape, gray] at (-1.2, 3) {Presentation};
-        \node[font=\scriptsize\itshape, gray] at (-1.2, 0) {Algorithms};
-        \node[font=\scriptsize\itshape, gray] at (-1.2, -1.5) {Core};
+        \node[font=\scriptsize\itshape, gray] at (-0.5, 3) {Presentation};
+        \node[font=\scriptsize\itshape, gray] at (-0.5, -0.15) {Algorithms};
+        \node[font=\scriptsize\itshape, gray] at (-0.5, -2.0) {Core};
 
         % Connections from presentation to bus
         \draw[arrow, gray] (ui) -- (bus);
@@ -153,7 +158,7 @@
         \draw[arrow, gray] (dash) -- (bus);
 
         % Connections from bus to algorithms
-        \foreach \alg in {ca, sotl, aco, pso, som, marl} {
+        \foreach \alg in {ca, sotl, aco, pso, som, marl, marle, press} {
             \draw[arrow, gray] (bus) -- (\alg);
         }
 
@@ -173,7 +178,7 @@
 % =============================================================================
 % SLIDE 6: Methodology - Algorithms Part 1
 % =============================================================================
-\begin{frame}{Methodology: The Six Algorithms (1/2)}
+\begin{frame}{Methodology: The Eight Algorithms (1/3)}
     \begin{columns}[T]
         \begin{column}{0.33\textwidth}
             \textbf{\alert{Cellular Automata}}
@@ -225,7 +230,7 @@
 % =============================================================================
 % SLIDE 7: Methodology - Algorithms Part 2
 % =============================================================================
-\begin{frame}{Methodology: The Six Algorithms (2/2)}
+\begin{frame}{Methodology: The Eight Algorithms (2/3)}
     \begin{columns}[T]
         \begin{column}{0.33\textwidth}
             \textbf{\alert{PSO}}
@@ -275,42 +280,92 @@
 \end{frame}
 
 % =============================================================================
-% SLIDE 8: Algorithm Integration
+% SLIDE 8: Methodology - Algorithms Part 3 (New Algorithms)
+% =============================================================================
+\begin{frame}{Methodology: The Eight Algorithms (3/3)}
+    \begin{columns}[T]
+        \begin{column}{0.5\textwidth}
+            \textbf{\alert{MARL Enhanced}}
+            \vspace{0.2cm}
+
+            Double DQN with PER:
+            \begin{itemize}
+                \item Double Q-learning reduces overestimation
+                \item Prioritized Experience Replay
+                \item Target network for stability
+                \item Per-direction agents (NS/EW)
+            \end{itemize}
+
+            \vspace{0.2cm}
+            {\small $Q(s,a) \leftarrow Q(s,a) + \alpha[r + \gamma Q'(s', \arg\max_a Q) - Q(s,a)]$}
+
+            \vspace{0.2cm}
+            \textit{Exploration-based adaptation achieves \alert{50\% delay reduction}}
+        \end{column}
+
+        \begin{column}{0.5\textwidth}
+            \textbf{\alert{Pressure-Based Control}}
+            \vspace{0.2cm}
+
+            Queue Balancing:
+            \begin{itemize}
+                \item Pressure = $(Q_{NS} + 0.5 \cdot \bar{v}_{NS}) - (Q_{EW} + 0.5 \cdot \bar{v}_{EW})$
+                \item Hysteresis prevents oscillation
+                \item Starvation prevention (max wait)
+                \item Gridlock detection with all-red clearance
+            \end{itemize}
+
+            \vspace{0.2cm}
+            \textit{Reactive queue balancing achieves \alert{19\% delay reduction}}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% =============================================================================
+% SLIDE 9: Algorithm Integration
 % =============================================================================
 \begin{frame}{Algorithm Integration}
     \textbf{EventBus Communication}
 
     \begin{center}
     \begin{tikzpicture}[
-        scale=0.8, transform shape,
-        event/.style={rectangle, draw, rounded corners, fill=orange!20, font=\scriptsize, minimum width=2.5cm},
-        algo/.style={rectangle, draw, rounded corners, fill=blue!15, font=\small, minimum width=1.5cm}
+        scale=0.7, transform shape,
+        event/.style={rectangle, draw, rounded corners, fill=orange!20, font=\scriptsize, minimum width=2.2cm},
+        algo/.style={rectangle, draw, rounded corners, fill=blue!15, font=\small, minimum width=1.4cm}
     ]
-        % Events
+        % Events (4 columns)
         \node[event] (e1) at (0, 0) {CongestionDetected};
         \node[event] (e2) at (3.5, 0) {IncidentCreated};
         \node[event] (e3) at (7, 0) {SignalChanged};
+        \node[event] (e4) at (10.5, 0) {QueueStateUpdate};
 
         % Publishers
         \node[algo] (som) at (0, 1.2) {SOM};
         \node[algo] (ui) at (3.5, 1.2) {UI};
         \node[algo] (sotl) at (7, 1.2) {SOTL};
+        \node[algo] (press) at (10.5, 1.2) {Pressure};
 
         % Subscribers
-        \node[algo] (aco1) at (-0.8, -1.2) {ACO};
-        \node[algo] (marl1) at (0.8, -1.2) {MARL};
+        \node[algo] (aco1) at (-1.0, -1.2) {ACO};
+        \node[algo] (marl1) at (0.5, -1.2) {MARL};
+        \node[algo] (marle1) at (2.0, -1.2) {MARL Enh};
         \node[algo] (aco2) at (3.5, -1.2) {ACO};
         \node[algo] (pso) at (7, -1.2) {PSO};
+        \node[algo] (sotl2) at (10.5, -1.2) {SOTL};
 
-        % Arrows
+        % Arrows - Publishers to Events
         \draw[-{Stealth}, thick] (som) -- (e1);
         \draw[-{Stealth}, thick] (ui) -- (e2);
         \draw[-{Stealth}, thick] (sotl) -- (e3);
+        \draw[-{Stealth}, thick] (press) -- (e4);
 
+        % Arrows - Events to Subscribers
         \draw[-{Stealth}, thick] (e1) -- (aco1);
         \draw[-{Stealth}, thick] (e1) -- (marl1);
+        \draw[-{Stealth}, thick] (e1) -- (marle1);
         \draw[-{Stealth}, thick] (e2) -- (aco2);
         \draw[-{Stealth}, thick] (e3) -- (pso);
+        \draw[-{Stealth}, thick] (e4) -- (sotl2);
     \end{tikzpicture}
     \end{center}
 
@@ -318,9 +373,9 @@
     \textbf{Key Integrations:}
     \begin{itemize}
         \item \alert{SOTL + PSO}: PSO optimizes SOTL threshold parameters ($\theta$, $t_{\min}$, $t_{\max}$)
-        \item \alert{SOM $\rightarrow$ ACO}: Pattern events trigger pheromone reduction (0.7$\times$ incident, 0.85$\times$ rush hour)
-        \item \alert{SOM $\rightarrow$ SOTL}: Pattern events adjust timing multipliers (e.g., rush hour: $t_{\max} \times 1.3$)
-        \item \alert{MARL + SOTL}: MARL learns when to override SOTL decisions
+        \item \alert{SOM $\rightarrow$ ACO/MARL}: Pattern events trigger pheromone reduction and adaptive timing
+        \item \alert{MARL Enhanced}: Subscribes to congestion events for adaptive signal timing
+        \item \alert{Pressure $\rightarrow$ Signals}: Queue-based phase switching via QueueStateUpdate events
     \end{itemize}
 \end{frame}
 
@@ -384,10 +439,10 @@
             \vspace{0.3cm}
             \textbf{Algorithm Comparison}
             \begin{itemize}
-                \item SOTL: Fast adaptation, $-29\%$ delay
-                \item ACO: Pheromone-guided routing, $-30\%$ delay
+                \item SOTL: Fast adaptation, $-28\%$ delay
+                \item ACO: Pheromone-guided routing, $-29\%$ delay
                 \item SOM: Pattern detection enables integration
-                \item Combined: $-44.5\%$ delay (synergistic)
+                \item Combined (8 algorithms): $-44.7\%$ delay (synergistic)
             \end{itemize}
         \end{column}
 
@@ -416,7 +471,7 @@
 % SLIDE 11: Results - Ablation Study (Additive)
 % =============================================================================
 \begin{frame}{Results: Ablation Study (Additive Contributions)}
-    \textbf{Algorithm Contribution Analysis} (340 runs, 20 seeds $\times$ 17 configurations)
+    \textbf{Algorithm Contribution Analysis} (480 runs, 20 seeds $\times$ 24 configurations)
 
     \vspace{0.2cm}
     \begin{columns}[T]
@@ -429,12 +484,14 @@
                 \toprule
                 \textbf{Algorithm} & \textbf{$\Delta$ Delay} & \textbf{$p$-value} \\
                 \midrule
-                SOTL & $-29.4\%$ & $< 0.001^{***}$ \\
-                \alert{ACO} & \alert{$-29.9\%$} & $< 0.001^{***}$ \\
-                PSO & $-1.5\%$ & $0.12$ \\
+                SOTL & $-28.1\%$ & $< 0.001^{***}$ \\
+                \alert{ACO} & \alert{$-29.4\%$} & $< 0.001^{***}$ \\
+                PSO & $-0.3\%$ & $0.33$ \\
                 SOM & $0.0\%$ & -- \\
+                \alert{MARL Enhanced} & \alert{$-50.2\%$} & $< 0.001^{***}$ \\
+                Pressure & $-19.1\%$ & $< 0.001^{***}$ \\
                 \midrule
-                Full Stack & $-44.5\%$ & $< 0.001^{***}$ \\
+                Full Stack v2 & $-44.7\%$ & $< 0.001^{***}$ \\
                 \bottomrule
             \end{tabular}
 
@@ -495,6 +552,11 @@
                 & $w$ (inertia) & 0.7 \\
                 \midrule
                 SOM & grid size & $10 \times 10$ \\
+                \midrule
+                \multirow{4}{*}{\alert{MARL Enh}} & $\alpha$ (learning) & \alert{0.01} \\
+                & $\gamma$ (discount) & \alert{0.95} \\
+                & $\epsilon$ decay & \alert{0.9995} \\
+                & batch size & \alert{32} \\
                 \bottomrule
             \end{tabular}
             }
@@ -543,10 +605,12 @@
 \begin{frame}{Conclusions}
     \textbf{Key Findings}
     \begin{itemize}
-        \item \alert{SOTL and ACO} each reduce delay by $\sim$30\% independently
-        \item \alert{Full stack integration} achieves 44.5\% delay reduction
+        \item \alert{8 self-organizing algorithms} integrated in unified framework
+        \item \alert{SOTL and ACO} each reduce delay by $\sim$29\% independently
+        \item \alert{Full stack v2 integration} achieves 44.7\% delay reduction
         \item \alert{SOM's indirect contribution} (+11.3\% when removed) validates event-driven architecture
-        \item Algorithm synergies: combined effect exceeds sum of individual contributions
+        \item \alert{MARL Enhanced}: 50\% delay reduction via exploration-based Double DQN
+        \item \alert{Pressure-Based}: 19\% delay reduction via reactive queue balancing
     \end{itemize}
 
     \vspace{0.3cm}
@@ -554,15 +618,16 @@
     \begin{itemize}
         \item Event-driven pub/sub architecture enabling loose algorithm coupling
         \item Tuned ACO hyperparameters ($\alpha=2.0$, $\beta=1.5$, $\rho=0.02$) for traffic domain
-        \item SOM$\rightarrow$ACO/SOTL integration via \texttt{PATTERN\_RECOGNIZED} events
+        \item Double DQN with Prioritized Experience Replay for enhanced MARL
+        \item Pressure-based control with hysteresis and starvation prevention
     \end{itemize}
 
     \vspace{0.3cm}
     \textbf{Future Work}
     \begin{itemize}
-        \item Hyperparameter optimization via grid search / Bayesian methods
         \item Extended scenarios: multi-incident, varying network topologies
-        \item Deep RL integration (DQN/PPO) for MARL component
+        \item Deep RL integration (PPO/A3C) for further improvement
+        \item Transfer learning across network topologies
     \end{itemize}
 \end{frame}
 

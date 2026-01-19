@@ -7,7 +7,6 @@ from ..base import BaseAlgorithm, AlgorithmVisualization
 from src.entities.network import RoadNetwork
 from src.core.state import SimulationState
 
-
 class CellularAutomataAlgorithm(BaseAlgorithm):
     """
     Cellular Automata algorithm implementing NaSch rules.
@@ -40,7 +39,6 @@ class CellularAutomataAlgorithm(BaseAlgorithm):
         self.slow_probability = config.get("slow_probability", 0.3)
         self.lane_change_threshold = config.get("lane_change_threshold", 2)
 
-        # Metrics
         self._total_moves = 0
         self._total_stops = 0
         self._average_speed = 0.0
@@ -62,7 +60,6 @@ class CellularAutomataAlgorithm(BaseAlgorithm):
         if not self.enabled or not self._initialized:
             return {}
 
-        # Calculate metrics from current vehicle states
         vehicles = list(state.vehicles.values())
         if vehicles:
             speeds = [v.speed for v in vehicles]
@@ -72,10 +69,8 @@ class CellularAutomataAlgorithm(BaseAlgorithm):
             self._total_moves += moving
             self._total_stops += len(vehicles) - moving
 
-            # Flow rate (vehicles per unit time)
             self._flow_rate = moving / len(vehicles) if vehicles else 0
 
-        # Update visualization data
         self._update_visualization(state)
 
         return {
@@ -90,12 +85,10 @@ class CellularAutomataAlgorithm(BaseAlgorithm):
         if not self._network:
             return
 
-        # Color roads by density (red = congested)
         for road_id, road in self._network.roads.items():
             density = road.get_density()
             self._visualization.road_values[road_id] = density
 
-            # Lerp from green (free flow) to red (congested)
             color = Colors.lerp(
                 Colors.CONGESTION_LOW,
                 Colors.CONGESTION_HIGH,

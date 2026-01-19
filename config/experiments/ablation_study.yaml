@@ -88,6 +88,40 @@ experiments:
     scenario: "rush_hour"
     description: "Full stack under high traffic"
 
+  # === NEW ALGORITHM ADDITIONS ===
+  - name: "add_marl_enhanced"
+    algorithms: ["cellular_automata", "marl_enhanced"]
+    description: "Enhanced MARL with Double Q-learning and PER"
+
+  - name: "add_pressure"
+    algorithms: ["cellular_automata", "pressure"]
+    description: "Pressure-based signal control"
+
+  # === NEW COMBINATIONS ===
+  - name: "pressure_aco"
+    algorithms: ["cellular_automata", "pressure", "aco"]
+    description: "Pressure control + ACO routing"
+
+  - name: "marl_enhanced_som"
+    algorithms: ["cellular_automata", "marl_enhanced", "som"]
+    description: "Enhanced MARL + pattern recognition"
+
+  # === FULL STACK WITH NEW ALGORITHMS ===
+  - name: "full_stack_v2"
+    algorithms: ["cellular_automata", "sotl", "aco", "pso", "som", "marl_enhanced", "pressure"]
+    description: "Full stack with all algorithms including new ones"
+
+  # === HIGH-TRAFFIC WITH NEW ALGORITHMS ===
+  - name: "add_pressure_rush"
+    algorithms: ["cellular_automata", "pressure"]
+    scenario: "rush_hour"
+    description: "Pressure control under high traffic"
+
+  - name: "add_marl_enhanced_rush"
+    algorithms: ["cellular_automata", "marl_enhanced"]
+    scenario: "rush_hour"
+    description: "Enhanced MARL under high traffic"
+
 settings:
   duration_ticks: 5400  # 3 minutes simulation time
   n_runs: 20            # 20 runs for statistical power

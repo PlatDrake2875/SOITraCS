@@ -12,7 +12,6 @@ from .sparkline import SparklineGraph
 
 logger = logging.getLogger(__name__)
 
-
 class DashboardPanel:
     """
     Dashboard panel showing metrics, algorithm toggles, and controls.
@@ -36,32 +35,26 @@ class DashboardPanel:
         self.settings = settings
         self.state = state
 
-        # Fonts
         pygame.font.init()
         self.font_title = pygame.font.Font(None, 32)
         self.font_label = pygame.font.Font(None, 20)
         self.font_value = pygame.font.Font(None, 30)
         self.font_small = pygame.font.Font(None, 18)
 
-        # UI state
         self._toggle_states: Dict[str, bool] = {}
 
-        # Separate button registries to avoid collision
         self._algorithm_buttons: Dict[str, pygame.Rect] = {}
         self._scenario_buttons: Dict[str, pygame.Rect] = {}
         self._speed_buttons: Dict[float, pygame.Rect] = {}
         self._control_buttons: Dict[str, pygame.Rect] = {}
 
-        # Callbacks
         self._on_algorithm_toggle: Optional[Callable[[str], None]] = None
         self._on_speed_change: Optional[Callable[[float], None]] = None
         self._on_pause_toggle: Optional[Callable[[], None]] = None
         self._on_scenario_change: Optional[Callable[[str], None]] = None
 
-        # Callback to query actual simulation scenario state
         self._get_active_scenario = get_active_scenario
 
-        # Sparkline graphs
         self._sparklines = {
             "total_vehicles": SparklineGraph(color=(100, 140, 200)),
             "average_speed": SparklineGraph(color=(100, 200, 120)),
@@ -71,7 +64,6 @@ class DashboardPanel:
         self._graph_update_counter = 0
         self._cached_graph_data: Dict[str, np.ndarray] = {}
 
-        # Spacing
         self.padding = 16
         self.section_gap = 16
         self.item_height = 32
@@ -91,32 +83,26 @@ class DashboardPanel:
 
     def render(self, surface: pygame.Surface, state: SimulationState) -> None:
         """Render the dashboard."""
-        # Background
+
         pygame.draw.rect(surface, Colors.PANEL_BG, self.rect)
 
-        # Border on left side
         border_rect = pygame.Rect(self.rect.left, self.rect.top, 2, self.rect.height)
         pygame.draw.rect(surface, Colors.PANEL_BORDER, border_rect)
 
         y = self.rect.top + self.padding
 
-        # Title
         y = self._render_title(surface, y)
         y = self._render_divider(surface, y)
 
-        # Global metrics
         y = self._render_metrics(surface, state, y)
         y = self._render_divider(surface, y)
 
-        # Algorithm toggles
         y = self._render_algorithm_toggles(surface, state, y)
         y = self._render_divider(surface, y)
 
-        # Scenario buttons
         y = self._render_scenario_buttons(surface, state, y)
         y = self._render_divider(surface, y)
 
-        # Speed controls
         y = self._render_speed_controls(surface, state, y)
 
     def _render_divider(self, surface: pygame.Surface, y: int) -> int:
@@ -143,19 +129,16 @@ class DashboardPanel:
         x = self.rect.left + self.padding
         metrics = state.current_metrics
 
-        # Update graph data every 10 frames (not every frame)
         self._graph_update_counter += 1
         if self._graph_update_counter >= 10:
             self._graph_update_counter = 0
             for key in self._sparklines:
                 self._cached_graph_data[key] = state.get_metrics_array(key, 60)
 
-        # Section header
         header = self.font_label.render("METRICS", True, Colors.TEXT_SECONDARY)
         surface.blit(header, (x, y))
         y += header.get_height() + 10
 
-        # Metric items with sparklines
         metric_items = [
             ("Vehicles", str(metrics.total_vehicles), Colors.TEXT_VALUE, "total_vehicles"),
             ("Avg Speed", f"{metrics.average_speed:.1f}", Colors.TEXT_VALUE, "average_speed"),
@@ -179,16 +162,14 @@ class DashboardPanel:
         metric_key: str = ""
     ) -> int:
         """Render a single metric row with sparkline."""
-        # Label
+
         label_surf = self.font_small.render(label, True, Colors.TEXT_SECONDARY)
         surface.blit(label_surf, (x, y + 4))
 
-        # Value (fixed position to leave room for sparkline)
         value_surf = self.font_value.render(value, True, value_color)
         value_x = x + 70
         surface.blit(value_surf, (value_x, y))
 
-        # Sparkline (right side)
         if metric_key and metric_key in self._sparklines:
             graph_x = self.rect.right - self.padding - 80
             self._sparklines[metric_key].render(
@@ -207,12 +188,10 @@ class DashboardPanel:
         """Render algorithm toggle buttons."""
         x = self.rect.left + self.padding
 
-        # Section header
         header = self.font_label.render("ALGORITHMS", True, Colors.TEXT_SECONDARY)
         surface.blit(header, (x, y))
         y += header.get_height() + 10
 
-        # Algorithm toggles - with colored text instead of indicator boxes
         algorithms = [
             ("cellular_automata", "CA", Colors.CA_COLOR),
             ("sotl", "SOTL", Colors.SOTL_COLOR),
@@ -222,7 +201,6 @@ class DashboardPanel:
             ("marl", "MARL", Colors.MARL_COLOR),
         ]
 
-        # Render in two columns
         col_width = (self.rect.width - 3 * self.padding) // 2
         start_y = y
         col = 0
@@ -241,11 +219,10 @@ class DashboardPanel:
             self._algorithm_buttons[algo_name] = btn_rect
             self._toggle_states[algo_name] = enabled
 
-            # Draw button with colored border when enabled
             if enabled:
-                # Filled background
+
                 pygame.draw.rect(surface, Colors.TOGGLE_ON, btn_rect, border_radius=4)
-                # Colored top accent line
+
                 accent_rect = pygame.Rect(btn_x, y, col_width, 3)
                 pygame.draw.rect(surface, algo_color, accent_rect, border_radius=2)
                 text_color = Colors.TEXT_PRIMARY
@@ -253,14 +230,12 @@ class DashboardPanel:
                 pygame.draw.rect(surface, Colors.TOGGLE_OFF, btn_rect, border_radius=4)
                 text_color = Colors.TEXT_SECONDARY
 
-            # Draw label (colored when enabled)
             label_color = algo_color if enabled else text_color
             label = self.font_small.render(display_name, True, label_color)
             label_x = btn_x + (col_width - label.get_width()) // 2
             label_y = y + (self.item_height - 6 - label.get_height()) // 2 - 4
             surface.blit(label, (label_x, label_y))
 
-            # Show key metric when enabled
             if enabled and algo:
                 metric_text = self._get_algorithm_metric_text(algo_name, algo)
                 if metric_text:
@@ -304,20 +279,17 @@ class DashboardPanel:
         """Render scenario selection buttons."""
         x = self.rect.left + self.padding
 
-        # Section header
         header = self.font_label.render("SCENARIOS", True, Colors.TEXT_SECONDARY)
         surface.blit(header, (x, y))
         y += header.get_height() + 10
 
-        # Build scenario list dynamically from network
         scenarios: List[Tuple[str, str]] = [("normal", "Normal")]
         if state.network and state.network.scenarios:
             for name in state.network.scenarios.keys():
                 display = name.replace("_", " ").title()[:8]
                 scenarios.append((name, display))
-        scenarios = scenarios[:4]  # Limit to fit UI
+        scenarios = scenarios[:4]
 
-        # Query actual active scenario from simulation
         active_scenario = (
             self._get_active_scenario() if self._get_active_scenario else None
         )
@@ -330,9 +302,7 @@ class DashboardPanel:
 
             self._scenario_buttons[scenario_id] = btn_rect
 
-            # Highlight active scenario
-            is_active = (active_scenario == scenario_id) or \
-                        (active_scenario is None and scenario_id == "normal")
+            is_active = (active_scenario == scenario_id) or                        (active_scenario is None and scenario_id == "normal")
             bg_color = Colors.TOGGLE_ON if is_active else Colors.BUTTON_NORMAL
             pygame.draw.rect(surface, bg_color, btn_rect, border_radius=4)
 
@@ -352,12 +322,10 @@ class DashboardPanel:
         """Render speed control buttons."""
         x = self.rect.left + self.padding
 
-        # Section header
         header = self.font_label.render("SPEED", True, Colors.TEXT_SECONDARY)
         surface.blit(header, (x, y))
         y += header.get_height() + 10
 
-        # Speed buttons
         speeds = [("0.5x", 0.5), ("1x", 1.0), ("2x", 2.0), ("5x", 5.0)]
         btn_width = (self.rect.width - 2 * self.padding - 3 * 6) // 4
 
@@ -377,7 +345,6 @@ class DashboardPanel:
 
         y += self.item_height + 4
 
-        # Pause button
         pause_rect = pygame.Rect(x, y, self.rect.width - 2 * self.padding, self.item_height - 4)
         self._control_buttons["pause"] = pause_rect
 
@@ -391,28 +358,25 @@ class DashboardPanel:
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[Dict[str, Any]]:
         """Handle click on dashboard. Returns action info or None."""
-        # Check algorithm buttons
+
         for algo_name, rect in self._algorithm_buttons.items():
             if rect.collidepoint(pos):
                 if self._on_algorithm_toggle:
                     self._on_algorithm_toggle(algo_name)
                 return {"action": "algorithm_toggle", "algorithm": algo_name}
 
-        # Check scenario buttons
         for scenario_id, rect in self._scenario_buttons.items():
             if rect.collidepoint(pos):
                 if self._on_scenario_change:
                     self._on_scenario_change(scenario_id)
                 return {"action": "scenario_change", "scenario": scenario_id}
 
-        # Check speed buttons
         for speed, rect in self._speed_buttons.items():
             if rect.collidepoint(pos):
                 if self._on_speed_change:
                     self._on_speed_change(speed)
                 return {"action": "speed_change", "speed": speed}
 
-        # Check control buttons
         for control_name, rect in self._control_buttons.items():
             if rect.collidepoint(pos):
                 if control_name == "pause":

@@ -7,7 +7,6 @@ import pygame
 from config.settings import Settings
 from src.core.state import SimulationState
 
-
 class BaseLayer(ABC):
     """
     Abstract base class for visualization layers.

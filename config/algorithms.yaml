@@ -47,8 +47,32 @@ marl:
   epsilon_min: 0.01        # Minimum exploration rate
   epsilon_decay: 0.9995    # Epsilon decay per step
   pretrained_path: "data/pretrained_models/marl_q_tables.npz"
-  inference_only: true     # Visualization-only mode (no signal control)
+  inference_only: false    # Active signal control mode
   # State discretization
   queue_bins: 5            # Number of bins for queue discretization
   time_bins: 4             # Number of bins for time-in-phase
   pressure_bins: 3         # Number of bins for neighbor pressure
+
+marl_enhanced:
+  enabled: true            # Enhanced MARL with Double Q-learning
+  learning_rate: 0.01      # Q-learning rate
+  gamma: 0.95              # Discount factor for future rewards
+  epsilon: 1.0             # Initial exploration rate (high for training)
+  epsilon_decay: 0.9995    # Epsilon decay per step
+  epsilon_min: 0.01        # Minimum exploration rate
+  # Enhanced features
+  double_q: true           # Use Double Q-learning
+  experience_replay: true  # Use experience replay
+  prioritized_replay: true # Use prioritized experience replay
+  buffer_size: 10000       # Replay buffer capacity
+  batch_size: 32           # Training batch size
+  target_update_interval: 100  # Steps between target network updates
+
+pressure:
+  enabled: true            # Pressure-based signal control
+  overload_threshold: 20   # Queue threshold for severe overload
+  both_overload_threshold: 15  # Threshold when both directions overloaded
+  stall_staleness: 40      # Ticks without progress before gridlock detection
+  all_red_clear_ticks: 3   # Duration of all-red clearance phase
+  hysteresis_delta: 3      # Pressure difference needed to trigger switch
+  starvation_ticks: 120    # Max wait before guaranteed green

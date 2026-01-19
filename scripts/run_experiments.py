@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 CLI for running SOITraCS experiments.
 
@@ -16,10 +15,8 @@ import logging
 import sys
 from pathlib import Path
 
-# Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -64,7 +61,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -73,11 +69,9 @@ def main():
     )
     logger = logging.getLogger(__name__)
 
-    # Create output directory
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load configuration
     from src.evaluation.experiment import load_experiment_config, ExperimentRunner
     from src.evaluation.analysis import (
         compute_statistics,
@@ -88,7 +82,6 @@ def main():
     logger.info(f"Loading configuration from {args.config}")
     config = load_experiment_config(args.config)
 
-    # Get settings
     experiments = config.get("experiments", [])
     settings = config.get("settings", {})
 
@@ -96,46 +89,39 @@ def main():
     duration_ticks = settings.get("duration_ticks", 5400)
     metrics = config.get("metrics", ["average_delay", "throughput", "average_queue_length"])
 
-    # Apply duration_ticks and metrics to each experiment
     for exp in experiments:
         if "duration_ticks" not in exp:
             exp["duration_ticks"] = duration_ticks
         if "metrics" not in exp:
             exp["metrics"] = metrics
 
-    # Create runner
     network_path = args.network or settings.get("network_path")
     runner = ExperimentRunner(network_path=network_path)
 
     logger.info(f"Running {len(experiments)} experiments, {n_runs} runs each")
     logger.info(f"Duration: {duration_ticks} ticks per run")
 
-    # Run experiments
     df = runner.run_comparison(
         configs=experiments,
         n_runs=n_runs,
         base_seed=args.base_seed,
     )
 
-    # Save raw data
     raw_path = output_dir / "raw_data.csv"
     df.to_csv(raw_path, index=False)
     logger.info(f"Raw data saved to {raw_path}")
 
-    # Compute and save summary statistics
     summary_df = compute_statistics(df)
     summary_path = output_dir / "summary_table.csv"
     export_csv_summary(summary_df, str(summary_path))
     logger.info(f"Summary table saved to {summary_path}")
 
-    # Generate LaTeX table
     latex_path = output_dir / "comparison.tex"
     latex_content = export_latex_table(summary_df)
     with open(latex_path, "w") as f:
         f.write(latex_content)
     logger.info(f"LaTeX table saved to {latex_path}")
 
-    # Print summary to console
     print("\n" + "=" * 60)
     print("EXPERIMENT SUMMARY")
     print("=" * 60)
@@ -143,7 +129,6 @@ def main():
     print("=" * 60 + "\n")
 
     logger.info("Experiments completed successfully!")
-
 
 if __name__ == "__main__":
     main()

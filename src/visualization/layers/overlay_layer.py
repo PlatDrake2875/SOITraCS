@@ -11,7 +11,6 @@ from src.entities.network import RoadNetwork
 from src.algorithms.base import AlgorithmVisualization
 from .base import BaseLayer
 
-
 class OverlayLayer(BaseLayer):
     """
     Layer for rendering algorithm-specific overlays.
@@ -20,7 +19,6 @@ class OverlayLayer(BaseLayer):
     subtle, non-intrusive effects (reduced opacity, thin lines).
     """
 
-    # Default opacity values - subtle overlays
     DEFAULT_OPACITY = 0.35
     LINE_OPACITY = 0.4
     POINT_OPACITY = 0.5
@@ -35,7 +33,6 @@ class OverlayLayer(BaseLayer):
         self.network = network
         self.state = state
 
-        # Per-algorithm visibility (defaults to False for subtle appearance)
         self._algorithm_visibility: Dict[str, bool] = {}
         self._algorithm_opacity: Dict[str, float] = {}
 
@@ -54,7 +51,6 @@ class OverlayLayer(BaseLayer):
         if not self.visible:
             return
 
-        # Get visualization data from each active algorithm
         for algo_name, algo in state.algorithms.items():
             if not algo.enabled:
                 continue
@@ -80,7 +76,6 @@ class OverlayLayer(BaseLayer):
         if not vis_data.show_overlay:
             return
 
-        # Use algorithm-specific rendering for cleaner appearance
         if algo_name == "sotl":
             self._render_sotl_overlay(surface, vis_data, offset, zoom, opacity)
         elif algo_name == "aco":
@@ -90,7 +85,7 @@ class OverlayLayer(BaseLayer):
         elif algo_name == "marl":
             self._render_marl_overlay(surface, vis_data, offset, zoom, opacity)
         else:
-            # Default rendering for other algorithms
+
             self._render_road_overlays(surface, vis_data, offset, zoom, opacity)
             self._render_lines(surface, vis_data, offset, zoom, opacity)
             self._render_points(surface, vis_data, offset, zoom)
@@ -104,7 +99,7 @@ class OverlayLayer(BaseLayer):
         opacity: float
     ) -> None:
         """Render SOTL overlay as subtle glow on active signals only."""
-        # Only render subtle glow on intersections with high activity
+
         overlay_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
         for int_id, color in vis_data.intersection_colors.items():
@@ -115,11 +110,9 @@ class OverlayLayer(BaseLayer):
             pos = self.transform_point(intersection.position, offset, zoom)
             value = vis_data.intersection_values.get(int_id, 0.0)
 
-            # Only show for significant values
             if value < 0.2:
                 continue
 
-            # Subtle glow ring instead of filled circle
             alpha = int(80 * opacity * value)
             glow_radius = int(20 * zoom)
             glow_width = max(2, int(3 * zoom))
@@ -145,7 +138,6 @@ class OverlayLayer(BaseLayer):
         """Render ACO overlay as thin semi-transparent pheromone trails."""
         overlay_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # Render road pheromone levels as thin colored lines
         for road_id, color in vis_data.road_colors.items():
             road = self.network.get_road(road_id)
             if not road:
@@ -156,11 +148,9 @@ class OverlayLayer(BaseLayer):
 
             value = vis_data.road_values.get(road_id, 0.0)
 
-            # Only show significant pheromone levels
             if value < 0.1:
                 continue
 
-            # Thin line with transparency based on pheromone strength
             alpha = int(100 * opacity * value)
             line_width = max(2, int(3 * zoom * (0.5 + value * 0.5)))
 
@@ -171,7 +161,6 @@ class OverlayLayer(BaseLayer):
                 line_width
             )
 
-        # Render pheromone trail lines
         for i, (start, end) in enumerate(vis_data.lines):
             if i >= len(vis_data.line_colors):
                 break
@@ -180,7 +169,6 @@ class OverlayLayer(BaseLayer):
             start_screen = self.transform_point(start, offset, zoom)
             end_screen = self.transform_point(end, offset, zoom)
 
-            # Thin semi-transparent lines
             alpha = int(60 * self.LINE_OPACITY)
             pygame.draw.line(
                 overlay_surface,
@@ -203,11 +191,9 @@ class OverlayLayer(BaseLayer):
         """Render PSO particles with fitness coloring and global best highlight."""
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # Render particles with fitness-based styling
         for i, pos in enumerate(vis_data.points):
             screen_pos = self.transform_point(pos, offset, zoom)
 
-            # Get color and size from vis_data
             if i < len(vis_data.point_colors):
                 color = vis_data.point_colors[i]
             else:
@@ -218,9 +204,8 @@ class OverlayLayer(BaseLayer):
             else:
                 size = 4.0
 
-            # First point is global best - render with glow
             if i == 0:
-                # Outer glow
+
                 glow_alpha = int(60 * opacity)
                 pygame.draw.circle(
                     overlay,
@@ -228,7 +213,7 @@ class OverlayLayer(BaseLayer):
                     screen_pos,
                     int(12 * zoom)
                 )
-                # Inner bright core
+
                 pygame.draw.circle(
                     overlay,
                     (*Colors.PSO_COLOR, int(220 * opacity)),
@@ -236,7 +221,7 @@ class OverlayLayer(BaseLayer):
                     int(6 * zoom)
                 )
             else:
-                # Regular particles
+
                 alpha = int(180 * opacity)
                 radius = max(2, int(size * zoom * 0.8))
                 pygame.draw.circle(
@@ -259,7 +244,6 @@ class OverlayLayer(BaseLayer):
         """Render MARL Q-value confidence halos with multi-ring pulsing animation."""
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # Animation tick for pulsing effect (modulo to prevent overflow)
         tick = (pygame.time.get_ticks() // 50) % 1000
 
         for int_id, color in vis_data.intersection_colors.items():
@@ -270,20 +254,16 @@ class OverlayLayer(BaseLayer):
             pos = self.transform_point(intersection.position, offset, zoom)
             confidence = vis_data.intersection_values.get(int_id, 0.0)
 
-            # Skip low confidence intersections
             if confidence < 0.15:
                 continue
 
-            # Multi-ring effect (3 rings with pulsing)
             for ring in range(3):
-                # Calculate pulse factor using sine wave
+
                 pulse = 1.0 + 0.15 * math.sin((tick + ring * 8) * 0.2)
                 radius = int((15 + ring * 8) * zoom * pulse)
 
-                # Alpha decreases for outer rings
                 alpha = int(90 * opacity * confidence * (1 - ring * 0.25))
 
-                # Width decreases for outer rings
                 width = max(2, int((3 - ring) * zoom))
 
                 pygame.draw.circle(
@@ -294,7 +274,6 @@ class OverlayLayer(BaseLayer):
                     width
                 )
 
-            # Center dot
             center_alpha = int(200 * opacity * confidence)
             pygame.draw.circle(
                 overlay,
@@ -326,11 +305,9 @@ class OverlayLayer(BaseLayer):
 
             value = vis_data.road_values.get(road_id, 0.5)
 
-            # Skip low values for cleaner appearance
             if value < 0.15:
                 continue
 
-            # Subtle semi-transparent line
             alpha = int(100 * opacity * value)
 
             pygame.draw.line(
@@ -361,7 +338,6 @@ class OverlayLayer(BaseLayer):
             start_screen = self.transform_point(start, offset, zoom)
             end_screen = self.transform_point(end, offset, zoom)
 
-            # Add alpha if not present
             if len(color) == 3:
                 alpha = int(120 * opacity)
                 draw_color = (*color, alpha)
@@ -394,7 +370,6 @@ class OverlayLayer(BaseLayer):
             size = vis_data.point_sizes[i] if i < len(vis_data.point_sizes) else 3.0
             screen_pos = self.transform_point(pos, offset, zoom)
 
-            # Smaller points for less clutter
             pygame.draw.circle(
                 surface,
                 color,

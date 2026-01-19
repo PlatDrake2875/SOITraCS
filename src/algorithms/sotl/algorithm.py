@@ -12,19 +12,17 @@ from src.entities.traffic_light import Direction
 from src.core.state import SimulationState
 from src.core.event_bus import Event, EventType, EventHandler, get_event_bus
 
-
 @dataclass
 class IntersectionController:
     """SOTL controller for a single intersection."""
 
     intersection: Intersection
-    theta: int = 5       # Queue threshold
-    mu: int = 3          # Platoon detection threshold
-    omega: int = 15      # Gap-out timer
-    min_green: int = 10  # Minimum green time
-    max_green: int = 60  # Maximum green time
+    theta: int = 5
+    mu: int = 3
+    omega: int = 15
+    min_green: int = 10
+    max_green: int = 60
 
-    # State
     _gap_timer: int = field(default=0, init=False)
     _last_arrival_tick: int = field(default=0, init=False)
     _phase_changes: int = field(default=0, init=False)
@@ -39,20 +37,16 @@ class IntersectionController:
         current_phase = light.current_phase
         time_in_phase = light.get_time_in_phase()
 
-        # Don't change during yellow
         if light.is_yellow:
             return False
 
-        # Minimum green time check
         if time_in_phase < self.min_green:
             return False
 
-        # Maximum green time - force change
         if time_in_phase >= self.max_green:
             self._request_change()
             return True
 
-        # Get queue lengths for red directions
         red_queue = 0
         green_queue = 0
 
@@ -63,14 +57,10 @@ class IntersectionController:
             else:
                 red_queue += queue_len
 
-        # Rule 1: Queue threshold (theta)
-        # Switch if red queue exceeds threshold and green queue is low
         if red_queue >= self.theta and green_queue < self.mu:
             self._request_change()
             return True
 
-        # Rule 2: Gap-out (omega)
-        # If no vehicles detected for omega ticks, switch
         if green_queue == 0:
             self._gap_timer += 1
             if self._gap_timer >= self.omega:
@@ -80,10 +70,8 @@ class IntersectionController:
         else:
             self._gap_timer = 0
 
-        # Rule 3: Platoon detection (mu)
-        # Keep green if platoon is arriving (high green queue)
         if green_queue >= self.mu:
-            return False  # Keep current phase for platoon
+            return False
 
         return False
 
@@ -102,7 +90,6 @@ class IntersectionController:
         self._gap_timer = 0
         self._last_arrival_tick = 0
         self._phase_changes = 0
-
 
 class SOTLAlgorithm(BaseAlgorithm):
     """
@@ -130,43 +117,37 @@ class SOTLAlgorithm(BaseAlgorithm):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
 
-        # SOTL parameters from config
         self.theta = config.get("theta", 5)
         self.mu = config.get("mu", 3)
         self.omega = config.get("omega", 15)
         self.min_green = config.get("min_green_time", 10)
         self.max_green = config.get("max_green_time", 60)
 
-        # Controllers for each intersection
         self._controllers: Dict[int, IntersectionController] = {}
 
-        # Metrics
         self._total_phase_changes = 0
         self._average_green_time = 0.0
 
-        # PSO integration
         self._subscribed = False
         self._event_handlers: Dict[EventType, EventHandler] = {}
         self._timing_suggestions_received = 0
         self._timing_suggestions_applied = 0
         self._current_tick = 0
-        self._last_suggestion_tick: Dict[int, int] = {}  # Per-intersection cooldown
+        self._last_suggestion_tick: Dict[int, int] = {}
 
     def initialize(self, network: RoadNetwork, state: SimulationState) -> None:
         """Initialize SOTL controllers for all intersections."""
         self._network = network
         self._controllers.clear()
 
-        # Store base values for SOM pattern adjustments
         self._base_min_green = self.config.get("min_green_time", 10)
         self._base_max_green = self.config.get("max_green_time", 60)
         self._base_theta = self.config.get("theta", 5)
 
         for int_id, intersection in network.intersections.items():
-            # Enable SOTL control for this intersection
+
             intersection.enable_sotl(True)
 
-            # Create controller
             controller = IntersectionController(
                 intersection=intersection,
                 theta=self.theta,
@@ -177,7 +158,6 @@ class SOTLAlgorithm(BaseAlgorithm):
             )
             self._controllers[int_id] = controller
 
-        # Subscribe to PSO timing suggestions
         self._subscribe_events()
 
         self._initialized = True
@@ -220,7 +200,6 @@ class SOTLAlgorithm(BaseAlgorithm):
         if int_id not in self._controllers:
             return
 
-        # Rate limiting: skip if within cooldown period
         last_tick = self._last_suggestion_tick.get(int_id, 0)
         if self._current_tick - last_tick < SOTL_SUGGESTION_COOLDOWN:
             return
@@ -229,13 +208,11 @@ class SOTLAlgorithm(BaseAlgorithm):
         new_min = event.data.get("min_green", controller.min_green)
         new_max = event.data.get("max_green", controller.max_green)
 
-        # Smooth transition using config constant to prevent oscillation
         smoothing_new = SOTL_PSO_SMOOTHING_FACTOR
         smoothing_old = 1.0 - smoothing_new
         controller.min_green = round(smoothing_old * controller.min_green + smoothing_new * new_min)
         controller.max_green = round(smoothing_old * controller.max_green + smoothing_new * new_max)
 
-        # Ensure min <= max with minimum floor of 5
         if controller.min_green > controller.max_green:
             controller.min_green = max(5, controller.max_green - 10)
 
@@ -249,21 +226,19 @@ class SOTLAlgorithm(BaseAlgorithm):
 
         pattern = event.data.get("pattern")
 
-        # Pattern-specific timing multipliers
         if pattern == "rush_hour":
-            # Longer greens, lower threshold for heavy traffic
+
             min_mult, max_mult, theta_mult = 1.2, 1.3, 0.8
         elif pattern == "incident":
-            # Longer minimum green, higher threshold to reduce switching
+
             min_mult, max_mult, theta_mult = 1.3, 1.0, 1.2
         elif pattern == "free_flow":
-            # Shorter cycles for light traffic
+
             min_mult, max_mult, theta_mult = 0.9, 0.9, 1.0
-        else:  # moderate
-            # No change
+        else:
+
             min_mult, max_mult, theta_mult = 1.0, 1.0, 1.0
 
-        # Apply with smoothing to all controllers (30% new, 70% old)
         smoothing = 0.3
         for controller in self._controllers.values():
             target_min = self._base_min_green * min_mult
@@ -280,18 +255,15 @@ class SOTLAlgorithm(BaseAlgorithm):
             return {}
 
         tick = state.current_metrics.tick
-        self._current_tick = tick  # Track for rate limiting
+        self._current_tick = tick
         phase_changes = 0
 
-        # First, update queue counts from actual vehicle positions
         self._update_queue_counts(state)
 
-        # Then update each controller
         for controller in self._controllers.values():
             if controller.update(tick):
                 phase_changes += 1
 
-                # Publish event
                 get_event_bus().publish(Event(
                     type=EventType.SIGNAL_PHASE_CHANGED,
                     data={
@@ -303,7 +275,6 @@ class SOTLAlgorithm(BaseAlgorithm):
 
         self._total_phase_changes += phase_changes
 
-        # Update visualization
         self._update_visualization(state)
 
         return {
@@ -333,7 +304,7 @@ class SOTLAlgorithm(BaseAlgorithm):
             return
 
         for int_id, intersection in self._network.intersections.items():
-            # Show queue pressure as color intensity
+
             total_queue = intersection.get_total_queue()
             pressure = min(1.0, total_queue / (self.theta * 4))
 
@@ -344,7 +315,6 @@ class SOTLAlgorithm(BaseAlgorithm):
                 pressure
             )
 
-            # Add annotation showing current phase info
             phase_info = intersection.get_phase_info()
             phase_text = f"Q:{total_queue}"
             pos = intersection.position
@@ -356,7 +326,7 @@ class SOTLAlgorithm(BaseAlgorithm):
 
     def get_metrics(self) -> Dict[str, float]:
         """Get SOTL-specific metrics."""
-        # Calculate average phase changes per intersection
+
         avg_changes = 0.0
         if self._controllers:
             total = sum(c.phase_changes for c in self._controllers.values())
@@ -389,13 +359,11 @@ class SOTLAlgorithm(BaseAlgorithm):
         was_enabled = self.enabled
         super().toggle(enabled)
 
-        # Handle event subscription based on toggle state
         if enabled and not was_enabled:
             self._subscribe_events()
         elif not enabled and was_enabled:
             self._unsubscribe_events()
 
-        # Update all intersections
         if self._network:
             for intersection in self._network.intersections.values():
                 intersection.enable_sotl(enabled)

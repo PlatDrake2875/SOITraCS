@@ -22,6 +22,26 @@ experiments:
     scenario: "normal"
     description: "Full algorithm stack with pattern recognition"
 
+  - name: "pressure_only"
+    algorithms: ["cellular_automata", "pressure"]
+    scenario: "normal"
+    description: "Pressure-based signal control (rule-based adaptive)"
+
+  - name: "marl_enhanced_only"
+    algorithms: ["cellular_automata", "marl_enhanced"]
+    scenario: "normal"
+    description: "Enhanced MARL with Double Q-learning"
+
+  - name: "sotl_vs_pressure"
+    algorithms: ["cellular_automata", "pressure"]
+    scenario: "normal"
+    description: "Direct comparison: Pressure vs SOTL baseline"
+
+  - name: "marl_vs_marl_enhanced"
+    algorithms: ["cellular_automata", "marl_enhanced"]
+    scenario: "normal"
+    description: "Direct comparison: Enhanced MARL vs base MARL"
+
 settings:
   duration_ticks: 5400  # ~3 minutes at 30 ticks/sec
   n_runs: 10

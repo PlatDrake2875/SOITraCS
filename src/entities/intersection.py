@@ -9,7 +9,6 @@ from .traffic_light import TrafficLight, SignalPhase, Direction, SignalState
 if TYPE_CHECKING:
     from .road import Road
 
-
 @dataclass
 class Intersection:
     """
@@ -19,16 +18,13 @@ class Intersection:
     """
 
     id: int
-    position: Tuple[float, float]  # (x, y) in pixels
+    position: Tuple[float, float]
 
-    # Traffic signal
     traffic_light: TrafficLight = field(default=None, init=False)
 
-    # Connected roads (by direction)
-    incoming_roads: Dict[Direction, int] = field(default_factory=dict)  # direction -> road_id
-    outgoing_roads: Dict[Direction, int] = field(default_factory=dict)  # direction -> road_id
+    incoming_roads: Dict[Direction, int] = field(default_factory=dict)
+    outgoing_roads: Dict[Direction, int] = field(default_factory=dict)
 
-    # Queue tracking
     _queue_counts: Dict[Direction, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -125,7 +121,6 @@ class Intersection:
             position=tuple(data["position"]),
         )
 
-        # Parse signal phases
         if "signal_phases" in data:
             phases = [SignalPhase.from_dict(p) for p in data["signal_phases"]]
             intersection.set_signal_phases(phases)

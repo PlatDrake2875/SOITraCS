@@ -1,0 +1,49 @@
+# Comparison experiments for new algorithm implementations
+# Tests marl_enhanced and pressure against existing alternatives
+
+experiments:
+  # === SIGNAL CONTROL COMPARISON ===
+  - name: "baseline_fixed"
+    algorithms: ["cellular_automata"]
+    description: "Baseline: Fixed timing (no adaptive control)"
+
+  - name: "sotl_adaptive"
+    algorithms: ["cellular_automata", "sotl"]
+    description: "SOTL: Self-organizing traffic lights"
+
+  - name: "pressure_adaptive"
+    algorithms: ["cellular_automata", "pressure"]
+    description: "Pressure: Queue pressure-based control"
+
+  - name: "marl_basic"
+    algorithms: ["cellular_automata", "marl"]
+    description: "MARL: Basic Q-learning control"
+
+  - name: "marl_enhanced_dqn"
+    algorithms: ["cellular_automata", "marl_enhanced"]
+    description: "Enhanced MARL: Double Q + PER"
+
+  # === COMBINED APPROACHES ===
+  - name: "sotl_with_routing"
+    algorithms: ["cellular_automata", "sotl", "aco"]
+    description: "SOTL + ACO routing"
+
+  - name: "pressure_with_routing"
+    algorithms: ["cellular_automata", "pressure", "aco"]
+    description: "Pressure + ACO routing"
+
+  - name: "marl_enhanced_with_som"
+    algorithms: ["cellular_automata", "marl_enhanced", "som"]
+    description: "Enhanced MARL + pattern recognition"
+
+settings:
+  duration_ticks: 5400
+  n_runs: 20
+  seeds: "sequential"
+
+metrics:
+  - average_delay
+  - throughput
+  - average_queue_length
+  - average_speed
+  - total_vehicles

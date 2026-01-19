@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 import yaml
 
-
 @dataclass
 class DisplaySettings:
     """Display and window settings."""
@@ -17,17 +16,15 @@ class DisplaySettings:
     fps_target: int = 30
     title: str = "SOITraCS - Self-Organizing Traffic Control"
 
-
 @dataclass
 class SimulationSettings:
     """Core simulation parameters."""
-    cell_size: int = 10  # Pixels per cell
-    vehicle_length: int = 2  # Cells
-    min_gap: int = 1  # Minimum gap between vehicles (cells)
-    spawn_rate: float = 0.1  # Default spawn rate (vehicles/tick)
-    max_vehicles: int = 500  # Performance cap
-    reroute_interval: int = 20  # Ticks between vehicle reroute attempts
-
+    cell_size: int = 10
+    vehicle_length: int = 2
+    min_gap: int = 1
+    spawn_rate: float = 0.1
+    max_vehicles: int = 500
+    reroute_interval: int = 20
 
 @dataclass
 class AlgorithmSettings:
@@ -75,9 +72,31 @@ class AlgorithmSettings:
         "gamma": 0.99,
         "epsilon": 0.1,
         "pretrained_path": "data/pretrained_models/marl_signal_control.pt",
-        "inference_only": True,
+        "inference_only": False,
     })
-
+    marl_enhanced: dict = field(default_factory=lambda: {
+        "enabled": True,
+        "learning_rate": 0.01,
+        "gamma": 0.95,
+        "epsilon": 1.0,
+        "epsilon_decay": 0.9995,
+        "epsilon_min": 0.01,
+        "double_q": True,
+        "experience_replay": True,
+        "prioritized_replay": True,
+        "buffer_size": 10000,
+        "batch_size": 32,
+        "target_update_interval": 100,
+    })
+    pressure: dict = field(default_factory=lambda: {
+        "enabled": True,
+        "overload_threshold": 20,
+        "both_overload_threshold": 15,
+        "stall_staleness": 40,
+        "all_red_clear_ticks": 3,
+        "hysteresis_delta": 3,
+        "starvation_ticks": 120,
+    })
 
 @dataclass
 class Settings:
@@ -95,11 +114,9 @@ class Settings:
             with open(config_path) as f:
                 data = yaml.safe_load(f) or {}
 
-            # Update algorithm settings from YAML
-            # Check for nested structure (algorithms: {...}) or flat structure
             algo_data = data.get("algorithms", {})
-            # Also check for algorithm names directly at top level
-            for algo_name in ["cellular_automata", "sotl", "aco", "pso", "som", "marl"]:
+
+            for algo_name in ["cellular_automata", "sotl", "aco", "pso", "som", "marl", "marl_enhanced", "pressure"]:
                 if algo_name in data and algo_name not in algo_data:
                     algo_data[algo_name] = data[algo_name]
 
@@ -108,13 +125,11 @@ class Settings:
                     current = getattr(settings.algorithms, algo_name)
                     current.update(algo_config)
 
-            # Update display settings
             if "display" in data:
                 for key, value in data["display"].items():
                     if hasattr(settings.display, key):
                         setattr(settings.display, key, value)
 
-            # Update simulation settings
             if "simulation" in data:
                 for key, value in data["simulation"].items():
                     if hasattr(settings.simulation, key):
@@ -142,6 +157,8 @@ class Settings:
                 "pso": self.algorithms.pso,
                 "som": self.algorithms.som,
                 "marl": self.algorithms.marl,
+                "marl_enhanced": self.algorithms.marl_enhanced,
+                "pressure": self.algorithms.pressure,
             }
         }
 
@@ -149,10 +166,7 @@ class Settings:
         with open(config_path, "w") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
-
-# Global settings instance (lazy loaded)
 _settings: Settings | None = None
-
 
 def get_settings() -> Settings:
     """Get global settings instance."""

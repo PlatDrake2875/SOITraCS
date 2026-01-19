@@ -26,7 +26,6 @@ from src.entities.network import RoadNetwork
 from src.entities.traffic_light import Direction
 from src.core.state import SimulationState
 
-
 @dataclass
 class MARLMetrics:
     """Metrics for tracking MARL learning progress."""
@@ -56,7 +55,6 @@ class MARLMetrics:
                 self.per_agent_rewards[agent_id] = []
             self.per_agent_rewards[agent_id].append(reward)
 
-        # Trim to last 1000 entries to prevent memory growth
         max_history = 1000
         if len(self.episode_rewards) > max_history:
             self.episode_rewards = self.episode_rewards[-max_history:]
@@ -76,7 +74,6 @@ class MARLMetrics:
             "epsilon_values": np.array(self.epsilon_values),
             "td_errors": np.array(self.td_errors),
         }
-
 
 class MARLAlgorithm(BaseAlgorithm):
     """
@@ -108,7 +105,6 @@ class MARLAlgorithm(BaseAlgorithm):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
 
-        # MARL parameters
         self.learning_rate = config.get("learning_rate", 0.01)
         self.gamma = config.get("gamma", 0.95)
         self.epsilon = config.get("epsilon", 0.1)
@@ -117,28 +113,21 @@ class MARLAlgorithm(BaseAlgorithm):
         self.pretrained_path = config.get("pretrained_path")
         self.inference_only = config.get("inference_only", True)
 
-        # State discretization bins
-        self.queue_bins = config.get("queue_bins", 5)  # 0-4 for queue levels
-        self.time_bins = config.get("time_bins", 4)  # Time in phase bins
-        self.pressure_bins = config.get("pressure_bins", 3)  # Neighbor pressure
+        self.queue_bins = config.get("queue_bins", 5)
+        self.time_bins = config.get("time_bins", 4)
+        self.pressure_bins = config.get("pressure_bins", 3)
 
-        # Q-tables per intersection
-        # State: (q_n, q_s, q_e, q_w, phase, time, pressure) discretized
-        # Actions: 0 = keep phase, 1 = switch phase
         self._q_tables: Dict[int, np.ndarray] = {}
 
-        # Agent states tracking
         self._agent_states: Dict[int, Tuple] = {}
         self._agent_actions: Dict[int, int] = {}
         self._agent_confidences: Dict[int, float] = {}
         self._prev_queues: Dict[int, Dict[Direction, int]] = {}
 
-        # Learning metrics
         self._metrics = MARLMetrics()
         self._total_rewards = 0.0
         self._step_count = 0
 
-        # RNG for reproducibility
         self._rng = np.random.default_rng()
 
     def set_seed(self, seed: int) -> None:
@@ -151,16 +140,14 @@ class MARLAlgorithm(BaseAlgorithm):
         self._network = network
         self._q_tables.clear()
 
-        # Calculate state space size
-        # 4 queue dimensions * phase (2) * time bin * pressure bin
         state_shape = (
-            self.queue_bins,  # North queue
-            self.queue_bins,  # South queue
-            self.queue_bins,  # East queue
-            self.queue_bins,  # West queue
-            2,  # Phase (NS=0, EW=1)
-            self.time_bins,  # Time in phase
-            self.pressure_bins,  # Neighbor pressure
+            self.queue_bins,
+            self.queue_bins,
+            self.queue_bins,
+            self.queue_bins,
+            2,
+            self.time_bins,
+            self.pressure_bins,
         )
         n_actions = 2
 
@@ -171,15 +158,12 @@ class MARLAlgorithm(BaseAlgorithm):
             self._agent_confidences[int_id] = 0.0
             self._prev_queues[int_id] = {}
 
-        # Build neighbor map for pressure calculation
         self._neighbor_map = self._build_neighbor_map(network)
 
-        # Try to load pretrained weights
         loaded = False
         if self.pretrained_path:
             loaded = self._load_pretrained()
 
-        # If no pretrained weights, initialize with heuristics
         if not loaded:
             self._initialize_heuristic_qtables()
 
@@ -234,36 +218,29 @@ class MARLAlgorithm(BaseAlgorithm):
         for int_id in self._q_tables:
             q = self._q_tables[int_id]
 
-            # Iterate over state space
             it = np.nditer(q[..., 0], flags=['multi_index'])
             while not it.finished:
                 idx = it.multi_index
                 q_n, q_s, q_e, q_w, phase, time_bin, pressure = idx
 
-                # NS queue total vs EW queue total
                 ns_queue = q_n + q_s
                 ew_queue = q_e + q_w
 
-                # Current phase serves NS (0) or EW (1)
-                if phase == 0:  # NS is green
+                if phase == 0:
                     served_queue = ns_queue
                     waiting_queue = ew_queue
-                else:  # EW is green
+                else:
                     served_queue = ew_queue
                     waiting_queue = ns_queue
 
-                # Base preference: keep if serving high queue, switch if waiting is higher
                 queue_diff = (waiting_queue - served_queue) / max(1, self.queue_bins)
 
-                # Time factor: more likely to switch if been in phase long
                 time_factor = time_bin / max(1, self.time_bins - 1)
 
-                # Combine factors
                 switch_preference = 0.3 * queue_diff + 0.2 * time_factor
 
-                # Q-values: higher = better
-                q[idx + (0,)] = 0.5 - switch_preference  # Keep
-                q[idx + (1,)] = 0.5 + switch_preference  # Switch
+                q[idx + (0,)] = 0.5 - switch_preference
+                q[idx + (1,)] = 0.5 + switch_preference
 
                 it.iternext()
 
@@ -282,9 +259,8 @@ class MARLAlgorithm(BaseAlgorithm):
         """
         queues = intersection.get_queue_lengths()
 
-        # Discretize queue lengths
         def discretize_queue(q: int) -> int:
-            # Map queue to bins (0, 1-2, 3-4, 5-7, 8+)
+
             if q == 0:
                 return 0
             elif q <= 2:
@@ -301,20 +277,17 @@ class MARLAlgorithm(BaseAlgorithm):
         q_e = discretize_queue(queues.get(Direction.EAST, 0))
         q_w = discretize_queue(queues.get(Direction.WEST, 0))
 
-        # Determine current phase (NS=0, EW=1)
         tl = intersection.traffic_light
         if tl.current_phase.green_directions & {Direction.NORTH, Direction.SOUTH}:
             phase = 0
         else:
             phase = 1
 
-        # Time in phase (discretized)
         time_in_phase = tl.get_time_in_phase()
         phase_duration = tl.current_phase.duration
         time_ratio = min(1.0, time_in_phase / max(1, phase_duration))
         time_bin = min(int(time_ratio * self.time_bins), self.time_bins - 1)
 
-        # Neighbor pressure (avg queue of adjacent intersections)
         neighbor_pressure = self._get_neighbor_pressure(int_id)
         pressure_bin = min(
             int(neighbor_pressure / 5 * self.pressure_bins),
@@ -352,16 +325,13 @@ class MARLAlgorithm(BaseAlgorithm):
         current_total = sum(current_queues.values())
         old_total = sum(old_queues.values())
 
-        # Reward for queue reduction
         queue_reward = (old_total - current_total) * 0.5
 
-        # Penalty for very long queues (non-linear)
         congestion_penalty = 0.0
         for direction, queue in current_queues.items():
             if queue > 8:
                 congestion_penalty += 0.1 * (queue - 8) ** 1.5
 
-        # Small penalty for being in congested state
         if current_total > 12:
             congestion_penalty += 0.2
 
@@ -379,44 +349,38 @@ class MARLAlgorithm(BaseAlgorithm):
         n_agents = 0
 
         for int_id, intersection in self._network.intersections.items():
-            # Get current state
+
             current_state = self._get_state(intersection, int_id)
 
-            # Select action (epsilon-greedy)
             if not self.inference_only and self._rng.random() < self.epsilon:
                 action = int(self._rng.integers(2))
             else:
                 q_values = self._q_tables[int_id][current_state]
                 action = int(np.argmax(q_values))
 
-            # Calculate confidence (difference between Q-values)
             q_values = self._q_tables[int_id][current_state]
             q_values_sum += np.mean(np.abs(q_values))
             confidence = abs(q_values[0] - q_values[1])
             self._agent_confidences[int_id] = min(1.0, confidence)
             n_agents += 1
 
-            # Execute action if not in inference mode
             if not self.inference_only:
-                if action == 1:  # Switch phase
+                if action == 1:
                     intersection.request_phase_change()
 
-                # Get previous queues for reward calculation
                 old_queues = self._prev_queues.get(int_id, {})
                 if not old_queues:
                     old_queues = intersection.get_queue_lengths()
 
-                # Calculate local reward
                 reward = self._compute_reward(int_id, intersection, old_queues)
                 agent_rewards[int_id] = reward
                 total_reward += reward
 
-                # Q-learning update
                 old_state = self._agent_states[int_id]
                 old_action = self._agent_actions[int_id]
 
-                if old_state != (0,) * 7:  # Skip first step
-                    # Q(s,a) = Q(s,a) + lr * (r + gamma * max(Q(s',a')) - Q(s,a))
+                if old_state != (0,) * 7:
+
                     old_q = self._q_tables[int_id][old_state + (old_action,)]
                     max_future_q = np.max(self._q_tables[int_id][current_state])
                     td_target = reward + self.gamma * max_future_q
@@ -425,14 +389,11 @@ class MARLAlgorithm(BaseAlgorithm):
                     self._q_tables[int_id][old_state + (old_action,)] = new_q
                     td_error_sum += abs(td_error)
 
-                # Store current queues for next reward calculation
                 self._prev_queues[int_id] = dict(intersection.get_queue_lengths())
 
-            # Store state/action for next update
             self._agent_states[int_id] = current_state
             self._agent_actions[int_id] = action
 
-        # Update metrics
         self._total_rewards += total_reward
         self._step_count += 1
 
@@ -447,11 +408,9 @@ class MARLAlgorithm(BaseAlgorithm):
             td_error=mean_td,
         )
 
-        # Epsilon decay (only during training)
         if not self.inference_only and self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        # Update visualization
         self._update_visualization(state)
 
         return {
@@ -473,25 +432,19 @@ class MARLAlgorithm(BaseAlgorithm):
             current_state = self._agent_states.get(int_id, (0,) * 7)
             q_values = self._q_tables[int_id][current_state]
 
-            # Confidence = difference between best and worst action
             confidence = abs(np.max(q_values) - np.min(q_values))
             normalized_conf = min(1.0, confidence / 1.0)
 
-            # Best action determines color
             best_action = np.argmax(q_values)
 
-            # Color encodes recommended action:
-            # Keep phase (0) = MARL gold color
-            # Switch phase (1) = Orange tint
             if best_action == 0:
                 color = Colors.MARL_COLOR
             else:
-                color = (200, 140, 80)  # Orange for switch recommendation
+                color = (200, 140, 80)
 
             self._visualization.intersection_values[int_id] = normalized_conf
             self._visualization.intersection_colors[int_id] = color
 
-            # Add point for agent
             pos = intersection.position
             self._visualization.points.append(pos)
             self._visualization.point_colors.append(color)
@@ -538,7 +491,6 @@ class MARLAlgorithm(BaseAlgorithm):
         """Reset MARL algorithm."""
         super().reset()
 
-        # Re-initialize with heuristics (don't zero out)
         if self._q_tables:
             self._initialize_heuristic_qtables()
 
@@ -550,7 +502,6 @@ class MARLAlgorithm(BaseAlgorithm):
         self._agent_confidences.clear()
         self._prev_queues.clear()
 
-        # Reset epsilon to initial value
         self.epsilon = self.config.get("epsilon", 0.1)
 
     def save_qtables(self, path: str) -> None:

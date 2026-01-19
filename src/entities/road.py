@@ -8,13 +8,11 @@ import numpy as np
 if TYPE_CHECKING:
     from .vehicle import Vehicle
 
-
 class LaneType(Enum):
     """Types of lanes."""
     REGULAR = auto()
     TURNING = auto()
     BUS = auto()
-
 
 @dataclass
 class Lane:
@@ -26,14 +24,12 @@ class Lane:
 
     road_id: int
     lane_index: int
-    length: int  # Number of cells
+    length: int
     lane_type: LaneType = LaneType.REGULAR
 
-    # Cellular representation: cell[i] = vehicle_id or -1 if empty
     cells: np.ndarray = field(default=None, init=False)
 
-    # Vehicle references for quick lookup
-    vehicles: Dict[int, int] = field(default_factory=dict)  # vehicle_id -> position
+    vehicles: Dict[int, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Initialize cell array."""
@@ -55,7 +51,7 @@ class Lane:
         for i in range(1, distance + 1):
             check_pos = position + i
             if check_pos >= self.length:
-                return True, i  # End of road is clear
+                return True, i
             if self.cells[check_pos] != -1:
                 return False, i - 1
         return True, distance
@@ -84,9 +80,8 @@ class Lane:
 
         old_position = self.vehicles[vehicle_id]
 
-        # Check if new position is valid
         if new_position >= self.length:
-            # Vehicle exits lane
+
             self.cells[old_position] = -1
             del self.vehicles[vehicle_id]
             return True
@@ -94,7 +89,6 @@ class Lane:
         if new_position < 0 or self.cells[new_position] != -1:
             return False
 
-        # Move vehicle
         self.cells[old_position] = -1
         self.cells[new_position] = vehicle_id
         self.vehicles[vehicle_id] = new_position
@@ -119,14 +113,13 @@ class Lane:
             if self.cells[i] != -1:
                 queue += 1
             elif queue > 0:
-                break  # Gap in queue
+                break
         return queue
 
     def reset(self) -> None:
         """Reset lane to empty state."""
         self.cells.fill(-1)
         self.vehicles.clear()
-
 
 @dataclass
 class Road:
@@ -139,22 +132,18 @@ class Road:
     id: int
     from_intersection: int
     to_intersection: int
-    length: int  # Cells
-    speed_limit: int = 5  # Max velocity in cells/tick
+    length: int
+    speed_limit: int = 5
     num_lanes: int = 1
 
-    # Lanes
     lanes: List[Lane] = field(default_factory=list)
 
-    # Road properties
     _incident: bool = field(default=False, init=False)
     _incident_timer: int = field(default=0, init=False)
     _incident_source: Optional[str] = field(default=None, init=False)
 
-    # Pheromone level (for ACO)
     pheromone: float = field(default=1.0, init=False)
 
-    # Geometry (for rendering)
     start_pos: Tuple[float, float] = field(default=(0, 0))
     end_pos: Tuple[float, float] = field(default=(0, 0))
 
@@ -190,7 +179,7 @@ class Road:
             True if incident was cleared, False if different owner.
         """
         if source is not None and self._incident_source != source:
-            return False  # Different owner, don't clear
+            return False
         self._incident = False
         self._incident_timer = 0
         self._incident_source = None
@@ -199,7 +188,7 @@ class Road:
     def update(self, dt: float = 1.0) -> None:
         """Update road state (incidents, etc.)."""
         if self._incident:
-            if self._incident_timer < 0:  # Permanent incident
+            if self._incident_timer < 0:
                 return
             self._incident_timer -= 1
             if self._incident_timer <= 0:

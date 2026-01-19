@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Analyze ablation study results for SOITraCS.
 
@@ -30,7 +29,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-# Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -40,8 +38,6 @@ from src.evaluation.analysis import (
     export_latex_table,
 )
 
-
-# Mapping from experiment names to algorithm components
 ALGORITHM_MAP = {
     "baseline_ca_only": [],
     "add_sotl": ["sotl"],
@@ -58,10 +54,8 @@ ALGORITHM_MAP = {
     "full_minus_som": ["sotl", "aco", "pso"],
 }
 
-# Metrics to analyze (lower is better for delay/queue, higher is better for throughput/speed)
 METRICS = ["average_delay_final", "throughput_final", "average_queue_length_final", "average_speed_final"]
 LOWER_IS_BETTER = {"average_delay_final", "average_queue_length_final"}
-
 
 def load_raw_data(input_dir: Path) -> pd.DataFrame:
     """Load raw data from ablation study."""
@@ -69,7 +63,6 @@ def load_raw_data(input_dir: Path) -> pd.DataFrame:
     if not raw_path.exists():
         raise FileNotFoundError(f"Raw data not found: {raw_path}")
     return pd.read_csv(raw_path)
-
 
 def compute_additive_contributions(
     df: pd.DataFrame,
@@ -121,17 +114,13 @@ def compute_additive_contributions(
             baseline_mean = stats["baseline_mean"]
             treatment_mean = stats["treatment_mean"]
 
-            # Absolute contribution
             contribution = treatment_mean - baseline_mean
 
-            # Percent contribution
             if baseline_mean != 0:
                 pct_contribution = (contribution / abs(baseline_mean)) * 100
             else:
                 pct_contribution = 0.0
 
-            # For "lower is better" metrics, negate for interpretation
-            # (negative contribution means improvement)
             metric_short = metric.replace("_final", "")
 
             row[f"{metric_short}_contribution"] = contribution
@@ -143,7 +132,6 @@ def compute_additive_contributions(
         results.append(row)
 
     return pd.DataFrame(results)
-
 
 def compute_interaction_effects(
     df: pd.DataFrame,
@@ -169,7 +157,6 @@ def compute_interaction_effects(
     if metrics is None:
         metrics = METRICS
 
-    # Get mean values for each experiment
     exp_means = df.groupby("experiment")[metrics].mean()
 
     if baseline_name not in exp_means.index:
@@ -178,7 +165,6 @@ def compute_interaction_effects(
 
     baseline_means = exp_means.loc[baseline_name]
 
-    # Define 2-way combinations
     combinations = [
         ("sotl_aco", "add_sotl", "add_aco", "SOTL", "ACO"),
         ("sotl_pso", "add_sotl", "add_pso", "SOTL", "PSO"),
@@ -205,7 +191,7 @@ def compute_interaction_effects(
         }
 
         for metric in metrics:
-            # interaction = combo - single_a - single_b + baseline
+
             interaction = (
                 combo_means[metric]
                 - single_a_means[metric]
@@ -215,29 +201,25 @@ def compute_interaction_effects(
 
             metric_short = metric.replace("_final", "")
 
-            # Interpret interaction direction
             if metric in LOWER_IS_BETTER:
-                # For delay/queue: negative interaction = synergy (helps more together)
+
                 interaction_type = "synergy" if interaction < 0 else "interference"
             else:
-                # For throughput/speed: positive interaction = synergy
+
                 interaction_type = "synergy" if interaction > 0 else "interference"
 
             row[f"{metric_short}_interaction"] = interaction
             row[f"{metric_short}_type"] = interaction_type
 
-        # Also compute statistical comparison between combo and best single
         combo_df = df[df["experiment"] == combo_exp]
         single_a_df = df[df["experiment"] == single_a_exp]
         single_b_df = df[df["experiment"] == single_b_exp]
 
-        # Compare combo vs best individual (using average_delay as primary metric)
         primary_metric = "average_delay_final"
         if primary_metric in metrics:
             a_mean = single_a_means[primary_metric]
             b_mean = single_b_means[primary_metric]
 
-            # Best single is lower delay
             if a_mean < b_mean:
                 best_single_df = single_a_df
                 best_single_name = algo_a
@@ -254,7 +236,6 @@ def compute_interaction_effects(
         results.append(row)
 
     return pd.DataFrame(results)
-
 
 def compute_subtractive_importance(
     df: pd.DataFrame,
@@ -310,18 +291,14 @@ def compute_subtractive_importance(
 
             stats = comparison[metric]
 
-            # Importance = how much worse we are without this algorithm
-            # For "lower is better": importance = reduced - full (positive = algorithm helps)
-            # For "higher is better": importance = full - reduced (positive = algorithm helps)
-            full_mean = stats["baseline_mean"]  # full_stack is baseline here
+            full_mean = stats["baseline_mean"]
             reduced_mean = stats["treatment_mean"]
 
             if metric in LOWER_IS_BETTER:
-                importance = reduced_mean - full_mean  # positive = removing hurts
+                importance = reduced_mean - full_mean
             else:
-                importance = full_mean - reduced_mean  # positive = removing hurts
+                importance = full_mean - reduced_mean
 
-            # Percent importance
             if full_mean != 0:
                 pct_importance = (importance / abs(full_mean)) * 100
             else:
@@ -332,13 +309,12 @@ def compute_subtractive_importance(
             row[f"{metric_short}_importance"] = importance
             row[f"{metric_short}_pct_impact"] = pct_importance
             row[f"{metric_short}_p_value"] = stats["p_value"]
-            row[f"{metric_short}_cohens_d"] = abs(stats["cohens_d"])  # Absolute effect size
+            row[f"{metric_short}_cohens_d"] = abs(stats["cohens_d"])
             row[f"{metric_short}_significant"] = stats["significant"]
 
         results.append(row)
 
     return pd.DataFrame(results)
-
 
 def compute_all_pairwise_comparisons(
     df: pd.DataFrame,
@@ -384,7 +360,6 @@ def compute_all_pairwise_comparisons(
                 })
 
     return pd.DataFrame(results)
-
 
 def generate_ablation_latex_table(
     additive_df: pd.DataFrame,
@@ -477,7 +452,6 @@ def generate_ablation_latex_table(
 
     return "\n".join(lines)
 
-
 def generate_figures(
     df: pd.DataFrame,
     additive_df: pd.DataFrame,
@@ -489,7 +463,7 @@ def generate_figures(
     try:
         import matplotlib.pyplot as plt
         import matplotlib
-        matplotlib.use("Agg")  # Non-interactive backend
+        matplotlib.use("Agg")
     except ImportError:
         logging.warning("matplotlib not available, skipping figure generation")
         return
@@ -501,7 +475,6 @@ def generate_figures(
     figures_dir = output_dir / "figures"
     figures_dir.mkdir(exist_ok=True)
 
-    # Figure 1: Contribution Bar Chart
     fig, ax = plt.subplots(figsize=(10, 6))
 
     algorithms = additive_df["algorithm"].tolist()
@@ -527,7 +500,6 @@ def generate_figures(
     plt.savefig(figures_dir / "contribution_bar_chart.png", dpi=150)
     plt.close()
 
-    # Figure 2: Interaction Heatmap
     if not interaction_df.empty:
         fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -546,10 +518,8 @@ def generate_figures(
         plt.savefig(figures_dir / "interaction_heatmap.png", dpi=150)
         plt.close()
 
-    # Figure 3: Performance Comparison (Box Plot)
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Box plot for average delay
     experiments_order = [
         "baseline_ca_only", "add_sotl", "add_aco", "add_pso", "add_som",
         "sotl_aco", "sotl_pso", "sotl_som", "full_stack"
@@ -578,7 +548,6 @@ def generate_figures(
     plt.close()
 
     logging.info(f"Figures saved to {figures_dir}")
-
 
 def print_summary(
     additive_df: pd.DataFrame,
@@ -631,7 +600,6 @@ def print_summary(
     print("\n* indicates statistically significant (p < 0.05)")
     print("=" * 70 + "\n")
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Analyze SOITraCS ablation study results"
@@ -662,7 +630,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -678,11 +645,9 @@ def main():
 
     logger.info(f"Loading data from {input_dir}")
 
-    # Load raw data
     df = load_raw_data(input_dir)
     logger.info(f"Loaded {len(df)} runs from {df['experiment'].nunique()} experiments")
 
-    # Compute analyses
     logger.info("Computing additive contributions...")
     additive_df = compute_additive_contributions(df)
 
@@ -695,7 +660,6 @@ def main():
     logger.info("Computing pairwise comparisons...")
     pairwise_df = compute_all_pairwise_comparisons(df)
 
-    # Save results
     additive_df.to_csv(output_dir / "additive_contributions.csv", index=False)
     logger.info(f"Saved additive_contributions.csv")
 
@@ -708,23 +672,19 @@ def main():
     pairwise_df.to_csv(output_dir / "pairwise_comparisons.csv", index=False)
     logger.info(f"Saved pairwise_comparisons.csv")
 
-    # Generate LaTeX table
     latex_content = generate_ablation_latex_table(additive_df, subtractive_df)
     latex_path = output_dir / "ablation_table.tex"
     with open(latex_path, "w") as f:
         f.write(latex_content)
     logger.info(f"Saved ablation_table.tex")
 
-    # Generate figures
     if not args.no_figures:
         logger.info("Generating figures...")
         generate_figures(df, additive_df, interaction_df, subtractive_df, output_dir)
 
-    # Print summary
     print_summary(additive_df, interaction_df, subtractive_df)
 
     logger.info(f"Analysis complete. Results saved to {output_dir}")
-
 
 if __name__ == "__main__":
     main()
